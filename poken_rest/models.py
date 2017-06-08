@@ -11,8 +11,12 @@ from rest_framework.authtoken.models import Token
 from poken_rest.utils.file_helper import *
 
 
+PHONE_MAX_DIGIT = 15
+
+
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_auth_token(sender, instance=None, created=False, **kwargs):
+    print "Sender: %s, kwargs: %s" % (sender, kwargs)
     if created:
         Token.objects.create(user=instance)
 
@@ -29,7 +33,8 @@ class HomeProductSection(models.Model):
     name = models.CharField(max_length=250, blank=True)
     section_action_value = models.CharField(max_length=250, blank=True)
     section_action_id = models.PositiveSmallIntegerField(default=0)
-    products = models.ManyToManyField('Product', max_length=5, help_text='lima produk per section')
+    products = models.ManyToManyField('Product', blank=True, max_length=5, help_text='lima produk per section')
+    top_sellers = models.ManyToManyField('poken_rest.Seller', blank=True, max_length=5, help_text='lima seller top')
 
 
 class FeaturedItem(models.Model):
@@ -72,20 +77,23 @@ class UserLocation(models.Model):
 class Seller(models.Model):
     related_user = models.ForeignKey(User, default=None, related_name='seller', on_delete=models.CASCADE)
 
-    password = models.CharField(max_length=128, help_text="password")
-    name = models.CharField(max_length=200, help_text='nama penjual')
-    username = models.CharField(max_length=50, help_text='user name yang singkat')
-    email = models.EmailField(help_text='email address')
+    store_name = models.TextField(blank=False, default='', help_text='nama toko')
+
     bio = models.TextField(blank=True)
     tag_line = models.TextField(blank=True)
-    phone_number = models.CharField(max_length=15)
-    location = models.ForeignKey(UserLocation)
+    phone_number = models.CharField(max_length=PHONE_MAX_DIGIT)
+    location = models.ForeignKey(UserLocation, help_text='lokasi toko')
+
+    owner_name = models.CharField(max_length=150, blank=False, default='', help_text='nama pemilik toko')
+    owner_phone = models.CharField(max_length=PHONE_MAX_DIGIT, blank=False, default='0',
+                                   help_text='nomor telepon pemilik toko')
+    owner_address = models.TextField(blank=False, default='', help_text='alamat pemilik toko')
 
 
 class Customer(models.Model):
     related_user = models.ForeignKey(User, default=None, related_name='customer', on_delete=models.CASCADE)
 
-    phone_number = models.CharField(max_length=15)
+    phone_number = models.CharField(max_length=PHONE_MAX_DIGIT)
     location = models.ForeignKey(UserLocation, related_name='location', on_delete=models.CASCADE)
 
     def __unicode__(self):
@@ -128,10 +136,10 @@ class Courier(models.Model):
 
 
 class Location(models.Model):
-    district = models.CharField(max_length=100)
-    city = models.CharField(max_length=100)
-    zip = models.CharField(max_length=6)
-    state = models.CharField(max_length=50)
+    district = models.CharField(max_length=100, help_text="kecamantan/kabupaten")
+    city = models.CharField(max_length=100, help_text='nama kota')
+    zip = models.CharField(max_length=6, help_text='kode pos')
+    state = models.CharField(max_length=50, help_text='negara')
 
     def __unicode__(self):
         return '{0}, {1}'.format(
@@ -146,6 +154,12 @@ class AddressBook(models.Model):
     name = models.CharField(max_length=100, help_text="nama address book")
     address = models.CharField(max_length=250, help_text="alamat spesifik dari user")
     phone = models.CharField(max_length=15, blank=True)
+
+    class Meta(object):
+        ordering = ('-id', )
+
+    def __unicode__(self):
+        return "%s - %s" % (self.address, self.phone)
 
 
 class Shipping(models.Model):
@@ -172,6 +186,9 @@ class Product(models.Model):
     description = models.TextField(blank=True)
     seller = models.ForeignKey(Seller, on_delete=models.CASCADE)
     is_posted = models.BooleanField(default=True)
+    is_discount = models.BooleanField(default=False)
+    discount_amount = models.PositiveIntegerField(blank=False, default=0)
+    is_cod = models.BooleanField(default=False)
     is_new = models.BooleanField(default=True)
     date_created = models.DateTimeField(auto_now_add=True)
     brand = models.ForeignKey(ProductBrand)
@@ -204,7 +221,7 @@ class ShoppingCart(models.Model):
 
 class OrderedProduct(models.Model):
     order_details = models.ForeignKey(OrderDetails)
-    shopping_cart = models.ForeignKey(ShoppingCart)
+    shopping_cart = models.ManyToManyField(ShoppingCart)
     status = models.SmallIntegerField(default=0)
 
 
