@@ -2,10 +2,11 @@
 from __future__ import unicode_literals
 
 from django.contrib import admin
+from django.http import request
 
 from poken_rest.models import Seller, Customer, ProductBrand, ProductSize, ProductCategory, ProductImage, Courier, \
     UserLocation, Location, AddressBook, Shipping, OrderDetails, Subscribed, Product, ShoppingCart, OrderedProduct, \
-    CollectedProduct, FeaturedItem, HomeProductSection, HomeItem
+    CollectedProduct, FeaturedItem, HomeProductSection, HomeItem, UserImage
 
 
 class HomeItemAdmin(admin.ModelAdmin):
@@ -44,23 +45,46 @@ class UserLocationAdmin(admin.ModelAdmin):
 
 
 class SellerAdmin(admin.ModelAdmin):
-    list_display = ('user_info', 'bio', 'tag_line', 'phone_number')
+    list_display = ('thumbnail', 'user_info', 'bio', 'tag_line', 'phone_number')
 
     def user_info(self, obj):
         if obj.related_user:
             return 'User: %s (%s)' % (obj.related_user.first_name, obj.related_user.email)
         else:
             return 'Data User bermasalah'
+
+    def thumbnail(self, obj):
+        if obj.user_image:
+            return '<img src="%s" style="height: 50px; width: auto">' % (obj.user_image.profile_pic.url)
+        else:
+            return "no image"
 
 
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('user_info', 'phone_number', 'location')
+    list_display = ('thumbnail', 'user_info', 'phone_number', 'location')
 
     def user_info(self, obj):
         if obj.related_user:
             return 'User: %s (%s)' % (obj.related_user.first_name, obj.related_user.email)
         else:
             return 'Data User bermasalah'
+
+    def thumbnail(self, obj):
+        if obj.user_image:
+            print "URL %s: " % dir(obj.user_image.profile_pic)
+            return '<img src="%s" style="height: 50px; width: auto">' % (obj.user_image.profile_pic.url)
+        else:
+            return "no image"
+
+
+class UserImageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'profile_pic', 'file_name',)
+
+    def file_name(self, obj):
+        if obj.profile_pic:
+            return '%s (%s)' % (obj.profile_pic.name, obj.profile_pic.size)
+        else:
+            return 'Gambar bermasalah'
 
 
 class ProductBrandAdmin(admin.ModelAdmin):
@@ -72,7 +96,7 @@ class ProductSizeAdmin(admin.ModelAdmin):
 
 
 class ProductCategoryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'related_sizes', 'name',)
+    list_display = ('id', 'name', 'related_sizes',)
 
     def related_sizes(self, obj):
         if obj.sizes:
@@ -124,13 +148,13 @@ class OrderDetailsAdmin(admin.ModelAdmin):
 
     def cust_name(self, obj):
         if obj.customer:
-            return '%s' % obj.customer.name
+            return '%s' % obj.customer.related_user.username
         else:
             return 'Customer kosong'
 
     def shipping_address(self, obj):
-        if obj.address:
-            return '%s' % (obj.address.name)
+        if obj.address_book:
+            return '%s' % (obj.address_book.name)
         else:
             return 'Address book kosong'
 
@@ -146,7 +170,7 @@ class SubscribedAdmin(admin.ModelAdmin):
 
 
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'description', 'seller_name', 'is_posted', 'is_new', 'date_created',
+    list_display = ('id', 'name', 'description', 'seller_name', 'discount_status', 'is_posted', 'is_new', 'date_created',
                     'product_brand', 'category_name', 'size_name', 'stock', 'price', 'weight')
 
     def seller_name(self, obj):
@@ -170,6 +194,12 @@ class ProductAdmin(admin.ModelAdmin):
             return '%s' % (obj.size.name)
         else:
             return 'Ukuran kosong'
+
+    def discount_status(self, obj):
+        if obj.is_discount:
+            return "Diskon %d" % obj.discount_amount
+        else:
+            return "NON DISCOUNT"
 
 
 class ShoppingCartAdmin(admin.ModelAdmin):
@@ -198,9 +228,9 @@ class OrderedProductAdmin(admin.ModelAdmin):
             return 'ID Order kosong'
 
     def shopping_cart_data(self, obj):
-        if obj.shopping_cart:
+        if obj.shopping_carts:
             return ''.join('Produk ID: %s (banyak: %s), ' %
-                           (sc.product.id, sc.quantity) for sc in obj.shopping_cart.all()).rsplit(',', 1)[0]
+                           (sc.product.id, sc.quantity) for sc in obj.shopping_carts.all()).rsplit(',', 1)[0]
         else:
             return 'Data produk troli kosong'
 
@@ -216,7 +246,7 @@ class CollectedProductAdmin(admin.ModelAdmin):
 
     def customer_data(self, obj):
         if obj.customer:
-            return '%s' % (obj.customer.name)
+            return '%s' % (obj.customer.related_user.username)
         else:
             return 'Customer kosong'
 
@@ -230,6 +260,7 @@ admin.site.register(ProductBrand, ProductBrandAdmin)
 admin.site.register(ProductSize, ProductSizeAdmin)
 admin.site.register(ProductCategory, ProductCategoryAdmin)
 admin.site.register(ProductImage, ProductImageAdmin)
+admin.site.register(UserImage, UserImageAdmin)
 admin.site.register(Courier, CourierAdmin)
 admin.site.register(Location, LocationAdmin)
 admin.site.register(AddressBook, AddressBookAdmin)

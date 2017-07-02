@@ -84,10 +84,15 @@ class Seller(models.Model):
     phone_number = models.CharField(max_length=PHONE_MAX_DIGIT)
     location = models.ForeignKey(UserLocation, help_text='lokasi toko')
 
+    user_image = models.ForeignKey('UserImage', blank=True, null=True)
+
     owner_name = models.CharField(max_length=150, blank=False, default='', help_text='nama pemilik toko')
     owner_phone = models.CharField(max_length=PHONE_MAX_DIGIT, blank=False, default='0',
                                    help_text='nomor telepon pemilik toko')
     owner_address = models.TextField(blank=False, default='', help_text='alamat pemilik toko')
+
+    def __unicode__(self):
+        return '%s (%s)' % (self.store_name, self.related_user.email)
 
 
 class Customer(models.Model):
@@ -95,6 +100,8 @@ class Customer(models.Model):
 
     phone_number = models.CharField(max_length=PHONE_MAX_DIGIT)
     location = models.ForeignKey(UserLocation, related_name='location', on_delete=models.CASCADE)
+
+    user_image = models.ForeignKey('UserImage', blank=True, null=True)
 
     def __unicode__(self):
         return '%s (%s)' % (self.related_user.first_name, self.related_user.email)
@@ -121,6 +128,10 @@ class ProductCategory(models.Model):
 
     def __unicode__(self):
         return 'Category: {0}'.format(self.name)
+
+
+class UserImage(models.Model):
+    profile_pic = models.ImageField(upload_to=generated_user_image_file_name, blank=True)
 
 
 class ProductImage(models.Model):
@@ -166,19 +177,29 @@ class Shipping(models.Model):
     name = models.CharField(max_length=50)
     fee = models.PositiveIntegerField()
 
+    def __unicode__(self):
+        return "%s - %s" % (self.name, self.fee)
+
 
 class OrderDetails(models.Model):
     # non unique id order id
     order_id = models.CharField(max_length=10, help_text="order id")
     customer = models.ForeignKey(Customer)
-    address = models.ForeignKey(AddressBook)
+    address_book = models.ForeignKey(AddressBook)
     date = models.DateTimeField(auto_now_add=True)
     shipping = models.ForeignKey(Shipping)
+
+    def __unicode__(self):
+        return '{%s}' % self.order_id
 
 
 class Subscribed(models.Model):
     seller = models.ForeignKey(Seller)
     customer = models.ForeignKey(Customer)
+    is_get_notif = models.BooleanField(default=False)
+
+    class Meta(object):
+        ordering = ('-id', )
 
 
 class Product(models.Model):
@@ -218,14 +239,29 @@ class ShoppingCart(models.Model):
     class Meta(object):
         ordering = ('-date', )
 
+    def __unicode__(self):
+        return '%s - Cust: %s, product: %s (%s items), added: %s' % (self.id, self.customer.id, self.product.id, self.quantity, self.date)
+
 
 class OrderedProduct(models.Model):
-    order_details = models.ForeignKey(OrderDetails)
-    shopping_cart = models.ManyToManyField(ShoppingCart)
+    order_details = models.ForeignKey(OrderDetails, on_delete=models.CASCADE)
+    shopping_carts = models.ManyToManyField(ShoppingCart)
     status = models.SmallIntegerField(default=0)
+
+    class Meta(object):
+        ordering = ('-id', )
+
+    def __unicode__(self):
+        return 'order id: %s, cart: %s' % (self.order_details.order_id, self.shopping_carts)
 
 
 class CollectedProduct(models.Model):
     product = models.ForeignKey(Product)
     customer = models.ForeignKey(Customer)
     status = models.SmallIntegerField(default=0)  # 0: last seen, 1: favorite
+
+    class Meta(object):
+        ordering = ('-id', )  # Last id on top
+
+    def __unicode__(self):
+        return '%s - product: %s, status: %s' % (self.id, self.product, self.status)

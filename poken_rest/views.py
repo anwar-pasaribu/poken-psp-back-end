@@ -2,13 +2,15 @@
 from __future__ import unicode_literals
 
 from django.contrib.auth.models import User, Group
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
+from rest_framework.response import Response
 
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, HomeItem, ShoppingCart, \
-    AddressBook, OrderedProduct
+    AddressBook, OrderedProduct, CollectedProduct, Subscribed
 from poken_rest.serializers import UserSerializer, GroupSerializer, ProductSerializer, UserLocationSerializer, \
     CustomersSerializer, SellerSerializer, ProductBrandSerializer, InsertProductSerializer, HomeContentSerializer, \
-    ShoppingCartSerializer, InsertShoppingCartSerializer, AddressBookSerializer, OrderedProductSerializer
+    ShoppingCartSerializer, InsertShoppingCartSerializer, AddressBookSerializer, OrderedProductSerializer, \
+    CollectedProductSerializer, SubscribedSerializer, InsertOrderedProductSerializer
 
 
 # Create your views here.
@@ -55,19 +57,64 @@ class ProductBrandViewSet(viewsets.ModelViewSet):
 
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
+    # queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
+
+    def get_queryset(self):
+        data = self.request.query_params
+        seller_id = data.get('seller_id', None)
+        action_id = data.get('action_id', None)
+
+        # BROWSE PRODUCT BY CATEGORY
+        category_id = data.get('category_id', None)
+        category_name = data.get('category_name', None)
+
+        if seller_id is not None:
+            print "Seller ID: %s" % seller_id
+            return Product.objects.filter(seller__id=seller_id, is_posted=True)
+        elif action_id is not None:
+            print "Action ID: %s" % action_id
+            if int(action_id) == 3:
+                return Product.objects.filter(is_discount=True, is_posted=True)
+        elif category_id is not None and category_name is not None:
+            print "Get product by category id: %s, name: %s" % (category_id, category_name)
+            return Product.objects.filter(category_id=int(category_id), category__name__contains=category_name)
+
+        print "Show all products."
+        return Product.objects.filter(is_posted=True)
 
 
 class InsertProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = InsertProductSerializer
 
+
 class InsertShoppingCartViewSet(viewsets.ModelViewSet):
     queryset = ShoppingCart.objects.all()
     serializer_class = InsertShoppingCartSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(InsertShoppingCartViewSet, self).get_serializer_context()
+        return context
+
+
+class InsertOrderedProductViewSet(viewsets.ModelViewSet):
+    queryset = OrderedProduct.objects.all()
+    serializer_class = InsertOrderedProductSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(InsertOrderedProductViewSet, self).get_serializer_context()
+        return context
 
 
 class UserLocationViewSet(viewsets.ModelViewSet):
@@ -96,6 +143,7 @@ class AddressBookSerializerViewSet(viewsets.ModelViewSet):
 
         return addressBookSet
 
+
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomersSerializer
@@ -111,9 +159,32 @@ class SellerViewSet(viewsets.ModelViewSet):
 
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
 
-class ShoppingCartViewSet(viewsets.ModelViewSet):
 
+class ShoppingCartViewSet(viewsets.ModelViewSet):
     serializer_class = ShoppingCartSerializer
+
+    def get_queryset(self):
+        """
+        This view should return a list of all the purchases
+        for the currently authenticated user.
+        Exclude shopping cart which is avaibale on ordered product
+        """
+        user = self.request.user
+        print "Logged user: %s" % user.username
+        active_cust = Customer.objects.filter(related_user=user).first()
+
+        return ShoppingCart.objects.filter(customer=active_cust, orderedproduct=None)
+
+
+class OrderedProductViewSet(viewsets.ModelViewSet):
+    queryset = OrderedProduct.objects.all()
+    serializer_class = OrderedProductSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+
+class CollectedProductViewSet(viewsets.ModelViewSet):
+    serializer_class = CollectedProductSerializer
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get_queryset(self):
         """
@@ -122,21 +193,32 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         print "Logged user: %s" % user.username
-        customerSet = Customer.objects.filter(related_user=user)
+        active_customer = Customer.objects.filter(related_user=user).first()
 
-        print "Customer: %s" % customerSet
-
-        if customerSet.first() is not None:
-            print "Logged customer: %s" % customerSet.first().related_user.email
-            return ShoppingCart.objects.filter(customer=customerSet)
+        if active_customer is not None:
+            return CollectedProduct.objects.filter(customer=active_customer, status=1)
         else:
-            print "Customer found"
+            print "User not login"
 
-        return []
+        return Response(status=status.HTTP_204_NO_CONTENT, data=[])
+
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(CollectedProductViewSet, self).get_serializer_context()
+        return context
 
 
-class OrderedProductViewSet(viewsets.ModelViewSet):
-    queryset = OrderedProduct.objects.all()
-    serializer_class = OrderedProductSerializer
+class SubscribedViewSet(viewsets.ModelViewSet):
+    serializer_class = SubscribedSerializer
     permission_classes = (permissions.IsAuthenticated,)
 
+    def get_queryset(self):
+        user = self.request.user
+        active_user = Customer.objects.filter(related_user=user).first()
+
+        if active_user is not None:
+            return Subscribed.objects.filter(customer=active_user)
+
+        return Response(status=status.HTTP_204_NO_CONTENT, data=[])

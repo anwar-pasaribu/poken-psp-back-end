@@ -2,11 +2,14 @@
 import random
 
 from django.contrib.auth.models import User, Group
+from django.http import request
+from django.http.request import HttpRequest
 from rest_framework import serializers
 
+from poken_rest.domain import Order
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, ProductCategory, \
     ProductImage, ProductSize, FeaturedItem, HomeItem, HomeProductSection, ShoppingCart, AddressBook, Location, \
-    Shipping, OrderDetails, OrderedProduct
+    Shipping, OrderDetails, OrderedProduct, CollectedProduct, Subscribed
 
 from django.contrib.auth import get_user_model  # If used custom user model
 
@@ -87,7 +90,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ('id', 'name', 'description', 'seller', 'is_cod', 'is_new', 'date_created', 'brand', 'category',
+        fields = ('id', 'name', 'description', 'seller', 'discount_amount',
+                  'is_discount', 'is_cod', 'is_new', 'date_created', 'brand', 'category',
                   'images', 'size', 'stock', 'price', 'weight')
 
 
@@ -194,25 +198,80 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
 
 
 class InsertShoppingCartSerializer(serializers.ModelSerializer):
-    product = serializers.PrimaryKeyRelatedField(many=False, read_only=False, queryset=Product.objects.all())
+    product_id = serializers.PrimaryKeyRelatedField(many=False, read_only=False, queryset=Product.objects.all())
 
     class Meta:
         model = ShoppingCart
-        fields = ('product', 'quantity')
+        fields = ('product_id', 'quantity')
 
     def create(self, validated_data):
-        product_data = validated_data.pop('product')
+        request = self.context.get('request')  # InsertShoppingCartViewSet should pass 'request' object
+        product_data = validated_data.pop('product_id')
         quantity_data = validated_data.pop('quantity')
 
-        print "Self data: %s" % dir(self)
-        cust = Customer.objects.filter()
+        cust = Customer.objects.filter(related_user=request.user).first()
 
+        prev_cart_item = ShoppingCart.objects.filter(customer=cust, product=product_data).first()
+
+        if prev_cart_item is not None:
+            print "Prev. shopping cart available (quantity): %d" % prev_cart_item.quantity
+            prev_cart_item.quantity = prev_cart_item.quantity + 1
+            prev_cart_item.save()
+
+            return prev_cart_item
+
+        print "Current customer: %s" % cust
         print "Product data: %s" % product_data
         print "Quantity data: %s" % quantity_data
 
-        new_cart = ShoppingCart.objects.create(product=product_data, quantity=quantity_data)
+        new_cart = ShoppingCart.objects.create(
+            customer=cust,
+            product=product_data,
+            quantity=quantity_data)
 
         return new_cart
+
+
+class InsertOrderedProductSerializer(serializers.ModelSerializer):
+
+    order_details_id = serializers.PrimaryKeyRelatedField(
+        many = False,
+        read_only = False,
+        queryset = OrderDetails.objects.all())
+
+    shopping_carts = serializers.SlugRelatedField(
+        many=True,
+        read_only = False,
+        slug_field='id',
+        queryset=ShoppingCart.objects.all())
+
+    class Meta:
+        model = OrderedProduct
+        fields = ('id', 'order_details_id', 'shopping_carts', 'status')
+
+    def create(self, validated_data):
+        request = self.context.get('request')  # InsertShoppingCartViewSet should pass 'request' object
+        order_details = validated_data.pop('order_details_id')
+        shopping_carts = validated_data.pop('shopping_carts')
+
+        cust = Customer.objects.filter(related_user=request.user).first()
+
+        for sc in shopping_carts:
+            print "Shopping cart item id: %s" % sc.id
+
+        print "Validated data: %s" % validated_data.keys
+        print "Current customer: %s" % cust
+        print "order_details data: %s" % order_details
+        print "shopping_carts data: %s" % shopping_carts
+
+        new_ordered_product = OrderedProduct.objects.create(
+            order_details=order_details,
+            status=Order.BOOKED)
+
+        new_ordered_product.shopping_carts = shopping_carts
+        new_ordered_product.save()
+
+        return new_ordered_product
 
 
 class AddressBookSerializer(serializers.ModelSerializer):
@@ -249,18 +308,66 @@ class ShippingSerializer(serializers.ModelSerializer):
 
 class OrderDetailsSerializer(serializers.ModelSerializer):
     customer = serializers.PrimaryKeyRelatedField(many=False, read_only=False, queryset=Customer.objects.all())
-    address = AddressBookSerializer(many=False, read_only=False)
+    address_book = AddressBookSerializer(many=False, read_only=False)
     shipping = ShippingSerializer(many=False, read_only=False)
 
     class Meta:
         model = OrderDetails
-        fields = ('id', 'customer', 'address', 'date', 'shipping')
+        fields = ('id', 'customer', 'address_book', 'date', 'shipping')
 
 
 class OrderedProductSerializer(serializers.ModelSerializer):
     order_details = OrderDetailsSerializer(many=False, read_only=True)
-    shopping_cart = ShoppingCartSerializer(many=True, read_only=True)
+    shopping_carts = ShoppingCartSerializer(many=True, read_only=True)
 
     class Meta:
         model = OrderedProduct
-        fields = ('id', 'order_details', 'shopping_cart', 'status')
+        fields = ('id', 'order_details', 'shopping_carts', 'status')
+
+
+class CollectedProductSerializer(serializers.ModelSerializer):
+    # parent_name = serializers.CharField(source='name', read_only=True)
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_price = serializers.IntegerField(source='product.price', read_only=True)
+    product_image = serializers.SerializerMethodField()  # Get get_product_images method
+
+    class Meta:
+        model = CollectedProduct
+        fields = ('id', 'product_id', 'product_name', 'product_price', 'product_image', 'status')
+
+    def get_product_image(self, obj):
+        if obj.product:
+            request = self.context.get('request')  # View set should pass 'request' object
+            if obj.product.images.first() is None:
+                return ""
+            image_url = obj.product.images.first().path.url
+            print "Images: %s" % image_url
+            return request.build_absolute_uri(image_url)
+        else:
+            return ""
+
+
+class SubscribedSerializer(serializers.ModelSerializer):
+    # parent_name = serializers.CharField(source='name', read_only=True)
+    seller_id = serializers.IntegerField(source='seller.id', read_only=True)
+    seller_name = serializers.CharField(source='seller.store_name', read_only=True)
+    seller_profile_pic = serializers.SerializerMethodField()
+    seller_tag_line = serializers.CharField(source='seller.tag_line', read_only=True)
+    seller_location = serializers.CharField(source='seller.location.city', read_only=True)
+
+    class Meta:
+        model = Subscribed
+        fields = ('id', 'is_get_notif', 'seller_id', 'seller_name', 'seller_profile_pic', 'seller_tag_line', 'seller_location')
+
+    def get_seller_profile_pic(self, obj):
+        if obj.seller:
+            request = self.context.get('request')  # View set should pass 'request' object
+            if obj.seller.user_image is None:
+                return None
+            image_url = obj.seller.user_image.profile_pic.url
+            print "Images: %s" % image_url
+            return request.build_absolute_uri(image_url)
+        else:
+            return None
+
