@@ -6,11 +6,11 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, HomeItem, ShoppingCart, \
-    AddressBook, OrderedProduct, CollectedProduct, Subscribed
+    AddressBook, OrderedProduct, CollectedProduct, Subscribed, OrderDetails
 from poken_rest.serializers import UserSerializer, GroupSerializer, ProductSerializer, UserLocationSerializer, \
     CustomersSerializer, SellerSerializer, ProductBrandSerializer, InsertProductSerializer, HomeContentSerializer, \
     ShoppingCartSerializer, InsertShoppingCartSerializer, AddressBookSerializer, OrderedProductSerializer, \
-    CollectedProductSerializer, SubscribedSerializer, InsertOrderedProductSerializer
+    CollectedProductSerializer, SubscribedSerializer, InsertOrderedProductSerializer, InsertOrderDetailsSerializer
 
 
 # Create your views here.
@@ -104,6 +104,35 @@ class InsertShoppingCartViewSet(viewsets.ModelViewSet):
         return context
 
 
+class InsertOrderDetailsViewSet(viewsets.ModelViewSet):
+    """
+    Insert order detail (require to continue orider)
+    """
+    queryset = OrderDetails.objects.all()
+    serializer_class = InsertOrderDetailsSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(InsertOrderDetailsViewSet, self).get_serializer_context()
+        return context
+
+
+class InsertAddressBookViewSet(viewsets.ModelViewSet):
+    """
+    Insert Address Book
+    """
+    queryset = AddressBook.objects.all()
+    serializer_class = InsertOrderDetailsSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_serializer_context(self):
+        context = super(InsertAddressBookViewSet, self).get_serializer_context()
+        return context
+
+
 class InsertOrderedProductViewSet(viewsets.ModelViewSet):
     queryset = OrderedProduct.objects.all()
     serializer_class = InsertOrderedProductSerializer
@@ -123,6 +152,10 @@ class UserLocationViewSet(viewsets.ModelViewSet):
 
 
 class AddressBookSerializerViewSet(viewsets.ModelViewSet):
+    """
+    Available request GET to get address book list or POST to add
+    more Address Book.
+    """
     queryset = AddressBook.objects.all()
     serializer_class = AddressBookSerializer
 
@@ -143,6 +176,13 @@ class AddressBookSerializerViewSet(viewsets.ModelViewSet):
 
         return addressBookSet
 
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(AddressBookSerializerViewSet, self).get_serializer_context()
+        return context
+
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
@@ -162,6 +202,7 @@ class SellerViewSet(viewsets.ModelViewSet):
 
 class ShoppingCartViewSet(viewsets.ModelViewSet):
     serializer_class = ShoppingCartSerializer
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get_queryset(self):
         """

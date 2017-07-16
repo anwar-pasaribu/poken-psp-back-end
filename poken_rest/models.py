@@ -161,8 +161,9 @@ class Location(models.Model):
 
 class AddressBook(models.Model):
     customer = models.ForeignKey(Customer)
-    location = models.ForeignKey(Location)
+    location = models.ForeignKey(Location, null=True, blank=True)
     name = models.CharField(max_length=100, help_text="nama address book")
+    # TODO Person In Charge name for next release
     address = models.CharField(max_length=250, help_text="alamat spesifik dari user")
     phone = models.CharField(max_length=15, blank=True)
 
@@ -185,9 +186,8 @@ class OrderDetails(models.Model):
     # non unique id order id
     order_id = models.CharField(max_length=10, help_text="order id")
     customer = models.ForeignKey(Customer)
-    address_book = models.ForeignKey(AddressBook)
+    address_book = models.ForeignKey(AddressBook, blank=True, null=True)
     date = models.DateTimeField(auto_now_add=True)
-    shipping = models.ForeignKey(Shipping)
 
     def __unicode__(self):
         return '{%s}' % self.order_id
@@ -235,6 +235,11 @@ class ShoppingCart(models.Model):
     product = models.ForeignKey(Product)
     date = models.DateTimeField(auto_now_add=True)
     quantity = models.PositiveSmallIntegerField(default=1)
+
+    shipping = models.ForeignKey('Shipping', blank=True, null=True)
+    shipping_fee = models.PositiveIntegerField(default=0, blank=True)
+
+    extra_note = models.TextField(blank=True)
 
     class Meta(object):
         ordering = ('-date', )

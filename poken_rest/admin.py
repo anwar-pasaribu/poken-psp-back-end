@@ -144,7 +144,7 @@ class ShippingAdmin(admin.ModelAdmin):
 
 
 class OrderDetailsAdmin(admin.ModelAdmin):
-    list_display = ('id', 'order_id', 'cust_name', 'shipping_address', 'date', 'shipping_fee')
+    list_display = ('id', 'order_id', 'cust_name', 'shipping_address', 'date')
 
     def cust_name(self, obj):
         if obj.customer:
@@ -156,13 +156,7 @@ class OrderDetailsAdmin(admin.ModelAdmin):
         if obj.address_book:
             return '%s' % (obj.address_book.name)
         else:
-            return 'Address book kosong'
-
-    def shipping_fee(self, obj):
-        if obj.shipping:
-            return '%s: Rp %s' % (obj.shipping.name, obj.shipping.fee)
-        else:
-            return 'Kurir pengiriman kosong'
+            return 'NULL'
 
 
 class SubscribedAdmin(admin.ModelAdmin):
@@ -203,7 +197,14 @@ class ProductAdmin(admin.ModelAdmin):
 
 
 class ShoppingCartAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer_data', 'product_data', 'date', 'quantity')
+    list_display = ('id', 'customer_data', 'product_data', 'date', 'quantity',
+                    'shipping_method', 'shipping_fee', 'extra_note')
+
+    def shipping_method(self, obj):
+        if obj.shipping:
+            return '%s' % obj.shipping.name
+        else:
+            return 'Pengiriman tidak ada'
 
     def customer_data(self, obj):
         if obj.customer:

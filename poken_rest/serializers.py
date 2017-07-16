@@ -1,6 +1,10 @@
 # encoding=utf8
 import random
 
+from time import time
+from django.utils import timezone
+import datetime
+
 from django.contrib.auth.models import User, Group
 from django.http import request
 from django.http.request import HttpRequest
@@ -12,6 +16,8 @@ from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBr
     Shipping, OrderDetails, OrderedProduct, CollectedProduct, Subscribed
 
 from django.contrib.auth import get_user_model  # If used custom user model
+
+from poken_rest.utils import stringutils
 
 UserModel = get_user_model()
 
@@ -189,23 +195,25 @@ class HomeContentSerializer(serializers.ModelSerializer):
         fields = ('id', 'featured_items', 'sections',)
 
 
-class ShoppingCartSerializer(serializers.ModelSerializer):
-    product = ProductCartSerializer(many=False)
-
-    class Meta:
-        model = ShoppingCart
-        fields = ('id', 'product', 'date', 'quantity')
-
-
 class InsertShoppingCartSerializer(serializers.ModelSerializer):
-    product_id = serializers.PrimaryKeyRelatedField(many=False, read_only=False, queryset=Product.objects.all())
+    product_id = serializers.PrimaryKeyRelatedField(
+        many=False,
+        read_only=False,
+        queryset=Product.objects.all()
+    )
+    shipping_id = serializers.PrimaryKeyRelatedField(
+        many=False,
+        read_only=False,
+        queryset=Shipping.objects.all()
+    )
 
     class Meta:
         model = ShoppingCart
-        fields = ('product_id', 'quantity')
+        fields = ('product_id', 'shipping_id', 'quantity')
 
     def create(self, validated_data):
         request = self.context.get('request')  # InsertShoppingCartViewSet should pass 'request' object
+        shipping_data = validated_data.pop('shipping_id')
         product_data = validated_data.pop('product_id')
         quantity_data = validated_data.pop('quantity')
 
@@ -213,20 +221,23 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
 
         prev_cart_item = ShoppingCart.objects.filter(customer=cust, product=product_data).first()
 
+        print "Current customer: %s" % cust
+        print "Product data: %s" % product_data
+        print "Shipping data: %s" % shipping_data
+        print "Quantity data: %s" % quantity_data
+
         if prev_cart_item is not None:
             print "Prev. shopping cart available (quantity): %d" % prev_cart_item.quantity
             prev_cart_item.quantity = prev_cart_item.quantity + 1
+            prev_cart_item.shipping = shipping_data
             prev_cart_item.save()
 
             return prev_cart_item
 
-        print "Current customer: %s" % cust
-        print "Product data: %s" % product_data
-        print "Quantity data: %s" % quantity_data
-
         new_cart = ShoppingCart.objects.create(
             customer=cust,
             product=product_data,
+            shipping=shipping_data,
             quantity=quantity_data)
 
         return new_cart
@@ -264,6 +275,15 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
         print "order_details data: %s" % order_details
         print "shopping_carts data: %s" % shopping_carts
 
+        # 1 - CREATE ORDER DETAILS
+        generated_order_id = stringutils.mobile_order_id_generator()
+        print "Generated order id: %s " % generated_order_id
+        new_order_details = OrderDetails.objects.update_or_create(
+            order_id=generated_order_id,
+            customer=cust,
+            date=time()
+        )
+
         new_ordered_product = OrderedProduct.objects.create(
             order_details=order_details,
             status=Order.BOOKED)
@@ -275,16 +295,15 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
 
 
 class AddressBookSerializer(serializers.ModelSerializer):
-    customer = serializers.PrimaryKeyRelatedField(many=False, read_only=False, queryset=Customer.objects.all())
-    location = UserLocationSerializer(many=False, read_only=False)
 
     class Meta:
         model = AddressBook
-        fields = ('id', 'customer', 'location', 'name', 'address', 'phone')
+        fields = ('id', 'name', 'address', 'phone')
 
     def create(self, validated_data):
-        cust = validated_data.pop('customer')  # POP remove related field from  validated_data
-        location = validated_data.pop('location')
+        request = self.context.get('request')
+
+        cust = Customer.objects.filter(related_user=request.user).first()
 
         # name = validated_data.pop('name')
         # address = validated_data.pop('address')
@@ -292,28 +311,74 @@ class AddressBookSerializer(serializers.ModelSerializer):
 
         print "Validated data: %s " % validated_data
         print "Cust from validated_data: %s " % cust
-        print "Location from validated_data: %s " % location
 
-        created_location = Location.objects.create(**location)
-
-        created_address_book = AddressBook.objects.create(customer=cust, location=created_location, **validated_data)
+        created_address_book = AddressBook.objects.create(
+            customer=cust,
+            location=None,
+            **validated_data)
         return created_address_book
 
 
 class ShippingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shipping
-        fields = ('name', 'fee',)
+        fields = ('id', 'name', 'fee',)
 
 
-class OrderDetailsSerializer(serializers.ModelSerializer):
-    customer = serializers.PrimaryKeyRelatedField(many=False, read_only=False, queryset=Customer.objects.all())
-    address_book = AddressBookSerializer(many=False, read_only=False)
-    shipping = ShippingSerializer(many=False, read_only=False)
+class ShoppingCartSerializer(serializers.ModelSerializer):
+    product = ProductCartSerializer(many=False)
+    shipping = ShippingSerializer(many=False)
+
+    class Meta:
+        model = ShoppingCart
+        fields = ('id', 'product', 'date', 'quantity', 'shipping', 'shipping_fee')
+
+
+class InsertOrderDetailsSerializer(serializers.ModelSerializer):
+
+    address_book_id = serializers.PrimaryKeyRelatedField(
+        many = False,
+        read_only = False,
+        queryset = AddressBook.objects.all())
 
     class Meta:
         model = OrderDetails
-        fields = ('id', 'customer', 'address_book', 'date', 'shipping')
+        fields = ('id', 'address_book_id', )
+
+    def create(self, validated_data):
+        request = self.context.get('request')  # InsertShoppingCartViewSet should pass 'request' object
+        address_book_data = validated_data.pop('address_book_id')
+
+        cust = Customer.objects.filter(related_user=request.user).first()
+
+        print "Validated data: %s" % validated_data.keys
+        print "Current customer: %s" % cust
+        print "address_book_data: %s" % address_book_data
+
+        # 1 - CREATE ORDER DETAILS
+        generated_order_id = stringutils.mobile_order_id_generator()
+        created_datetime = timezone.now()
+        new_order_details = OrderDetails.objects.create(
+            order_id=generated_order_id,
+            customer=cust,
+            address_book=address_book_data,
+            date=created_datetime
+        )
+
+        return new_order_details
+
+
+class OrderDetailsSerializer(serializers.ModelSerializer):
+    customer = serializers.PrimaryKeyRelatedField(
+        many=False,
+        read_only=False,
+        queryset=Customer.objects.all()
+    )
+    address_book = AddressBookSerializer(many=False, read_only=False)
+
+    class Meta:
+        model = OrderDetails
+        fields = ('id', 'order_id', 'customer', 'address_book', 'date',)
 
 
 class OrderedProductSerializer(serializers.ModelSerializer):
