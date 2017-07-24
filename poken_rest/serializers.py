@@ -278,11 +278,6 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
         # 1 - CREATE ORDER DETAILS
         generated_order_id = stringutils.mobile_order_id_generator()
         print "Generated order id: %s " % generated_order_id
-        new_order_details = OrderDetails.objects.update_or_create(
-            order_id=generated_order_id,
-            customer=cust,
-            date=time()
-        )
 
         new_ordered_product = OrderedProduct.objects.create(
             order_details=order_details,

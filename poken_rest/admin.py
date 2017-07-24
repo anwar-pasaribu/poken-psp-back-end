@@ -124,7 +124,7 @@ class LocationAdmin(admin.ModelAdmin):
 
 
 class AddressBookAdmin(admin.ModelAdmin):
-    list_display = ('cust_name', 'name', 'location_address', 'address', 'phone',)
+    list_display = ('id', 'cust_name', 'name', 'location_address', 'address', 'phone',)
 
     def cust_name(self, obj):
         if obj.customer:

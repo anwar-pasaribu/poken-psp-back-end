@@ -48,11 +48,11 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^poken_rest/', include(router.urls)),
 
-    url(r'^poken_rest-auth/', include('rest_framework.urls', namespace='rest_framework'))
+    url(r'^poken_rest/poken_rest-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 # we are serving static and media files here at the moment - if we deploy this app to a server, we do necessarily want this
 
 urlpatterns += [
-    url(r'^api-token-auth/', token_views.obtain_auth_token)
+    url(r'^poken_rest/api-token-auth/', token_views.obtain_auth_token)
 ]
 
