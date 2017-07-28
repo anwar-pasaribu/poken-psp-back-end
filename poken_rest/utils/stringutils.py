@@ -11,8 +11,6 @@ def mobile_order_id_generator(size=9, chars=string.ascii_uppercase + string.digi
     second = datetime.datetime.today().second
     day = datetime.datetime.today().day
 
-    print "Day: %s" % day
-
     rand_id = 'M' + ''.join(random.choice(chars) for _ in range(size))
 
     return rand_id

@@ -212,9 +212,13 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         print "Logged user: %s" % user.username
-        active_cust = Customer.objects.filter(related_user=user).first()
+        active_cust = Customer.objects.filter(
+            related_user=user
+        ).first()
 
-        return ShoppingCart.objects.filter(customer=active_cust, orderedproduct=None)
+        return ShoppingCart.objects.filter(
+            customer=active_cust,
+            orderedproduct=None)
 
 
 class OrderedProductViewSet(viewsets.ModelViewSet):

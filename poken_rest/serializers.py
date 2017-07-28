@@ -219,7 +219,12 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
 
         cust = Customer.objects.filter(related_user=request.user).first()
 
-        prev_cart_item = ShoppingCart.objects.filter(customer=cust, product=product_data).first()
+        # Looking for Shopping Cart which is not available on OrderedProduct
+        prev_cart_item = ShoppingCart.objects.filter(
+            customer=cust,
+            product=product_data,
+            orderedproduct=None
+        ).first()
 
         print "Current customer: %s" % cust
         print "Product data: %s" % product_data
@@ -270,14 +275,13 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
         for sc in shopping_carts:
             print "Shopping cart item id: %s" % sc.id
 
-        print "Validated data: %s" % validated_data.keys
         print "Current customer: %s" % cust
         print "order_details data: %s" % order_details
         print "shopping_carts data: %s" % shopping_carts
 
         # 1 - CREATE ORDER DETAILS
-        generated_order_id = stringutils.mobile_order_id_generator()
-        print "Generated order id: %s " % generated_order_id
+        # generated_order_id = stringutils.mobile_order_id_generator()
+        # print "Generated order id: %s " % generated_order_id
 
         new_ordered_product = OrderedProduct.objects.create(
             order_details=order_details,
@@ -343,6 +347,26 @@ class InsertOrderDetailsSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         request = self.context.get('request')  # InsertShoppingCartViewSet should pass 'request' object
         address_book_data = validated_data.pop('address_book_id')
+        generated_order_id = stringutils.mobile_order_id_generator()
+        created_datetime = timezone.now()
+
+        # PROCEED OTHER POST DATA
+        post_data = self.context.get('request').POST
+        order_details_id_data = post_data.get('order_details_id')
+
+        # UPDATE ORDER ID
+        if order_details_id_data is not None:
+            order_details_id = int(order_details_id_data)
+            previous_order_details = OrderDetails.objects.filter(pk=order_details_id).first()
+
+            if previous_order_details is not None:
+                print "Previous order details: %s " % previous_order_details
+                previous_order_details.address_book = address_book_data
+                previous_order_details.date = created_datetime
+                previous_order_details.save()
+                return previous_order_details
+            else:
+                print "NO PREVIOUS ORDER DETAIL. THEN CREATE ONE!!!"
 
         cust = Customer.objects.filter(related_user=request.user).first()
 
@@ -350,9 +374,7 @@ class InsertOrderDetailsSerializer(serializers.ModelSerializer):
         print "Current customer: %s" % cust
         print "address_book_data: %s" % address_book_data
 
-        # 1 - CREATE ORDER DETAILS
-        generated_order_id = stringutils.mobile_order_id_generator()
-        created_datetime = timezone.now()
+        # CREATE ORDER DETAILS
         new_order_details = OrderDetails.objects.create(
             order_id=generated_order_id,
             customer=cust,
