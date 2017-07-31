@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+from django.utils import timezone
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
@@ -8,6 +10,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 
+from poken_rest.domain import Order
 from poken_rest.utils.file_helper import *
 
 
@@ -103,6 +106,9 @@ class Customer(models.Model):
 
     user_image = models.ForeignKey('UserImage', blank=True, null=True)
 
+    class Meta(object):
+        ordering = ('-id', )
+
     def __unicode__(self):
         return '%s (%s)' % (self.related_user.first_name, self.related_user.email)
 
@@ -188,6 +194,23 @@ class OrderDetails(models.Model):
     customer = models.ForeignKey(Customer)
     address_book = models.ForeignKey(AddressBook, blank=True, null=True)
     date = models.DateTimeField(auto_now_add=True)
+
+    # Payment expiration
+    payment_expiration_date = models.DateTimeField(
+        auto_now_add=False,
+        null=True,
+        default=timezone.now
+    )
+
+    # Transaction/Order expiration
+    order_expiration_date = models.DateTimeField(
+        auto_now_add=False,
+        null=True,
+        default=timezone.now
+    )
+
+    # Moved from Ordered Product
+    order_status = models.SmallIntegerField(default=Order.BOOKED)
 
     def __unicode__(self):
         return '{%s}' % self.order_id

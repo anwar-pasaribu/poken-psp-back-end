@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import datetime
+import pytz
 from django.contrib import admin
 from django.http import request
 
+from poken_rest.domain import Order
 from poken_rest.models import Seller, Customer, ProductBrand, ProductSize, ProductCategory, ProductImage, Courier, \
     UserLocation, Location, AddressBook, Shipping, OrderDetails, Subscribed, Product, ShoppingCart, OrderedProduct, \
     CollectedProduct, FeaturedItem, HomeProductSection, HomeItem, UserImage
@@ -144,7 +147,14 @@ class ShippingAdmin(admin.ModelAdmin):
 
 
 class OrderDetailsAdmin(admin.ModelAdmin):
-    list_display = ('id', 'order_id', 'cust_name', 'shipping_address', 'date')
+    list_display = ('id',
+                    'order_id',
+                    'cust_name',
+                    'shipping_address',
+                    'date',
+                    'payment_expiration',
+                    'order_expiration',
+                    'order_status_text')
 
     def cust_name(self, obj):
         if obj.customer:
@@ -157,6 +167,41 @@ class OrderDetailsAdmin(admin.ModelAdmin):
             return '%s' % (obj.address_book.name)
         else:
             return 'NULL'
+
+    def payment_expiration(self, obj):
+        if obj.payment_expiration_date:
+            now = datetime.datetime.now(pytz.utc)
+            diff = obj.payment_expiration_date - now
+            if (diff.total_seconds() < 0):
+                return Order.EXPIRE_TEXT
+            else:
+                return "Sisa waktu: %s" % diff
+        else:
+            return 'NOT SET'
+
+    def order_expiration(self, obj):
+        if obj.order_expiration_date:
+            now = datetime.datetime.now(pytz.utc)
+            return obj.order_expiration_date - now
+        else:
+            return 'NOT SET'
+
+    def order_status_text(self, obj):
+        status = obj.order_status
+        if status == Order.BOOKED:
+            return Order.BOOKED_TEXT
+        elif status == Order.PAID:
+            return Order.PAID_TEXT
+        elif status == Order.SENT:
+            return Order.SENT_TEXT
+        elif status == Order.RECEIVED:
+            return Order.RECEIVED_TEXT
+        elif status == Order.SUCCESS:
+            return Order.SUCCESS_TEXT
+        elif status == Order.REFUND:
+            return Order.REFUND_TEXT
+        elif status == Order.EXPIRE:
+            return Order.EXPIRE_TEXT
 
 
 class SubscribedAdmin(admin.ModelAdmin):

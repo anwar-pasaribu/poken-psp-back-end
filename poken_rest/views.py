@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 
 from django.contrib.auth.models import User, Group
 from rest_framework import viewsets, permissions, status
+from rest_framework.exceptions import NotFound
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, HomeItem, ShoppingCart, \
@@ -12,8 +14,11 @@ from poken_rest.serializers import UserSerializer, GroupSerializer, ProductSeria
     ShoppingCartSerializer, InsertShoppingCartSerializer, AddressBookSerializer, OrderedProductSerializer, \
     CollectedProductSerializer, SubscribedSerializer, InsertOrderedProductSerializer, InsertOrderDetailsSerializer
 
+# GET USER DATA BY TOKEN
+from rest_framework.authtoken.models import Token
 
 # Create your views here.
+from poken_rest.utils import constants
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -33,6 +38,11 @@ class GroupViewSet(viewsets.ModelViewSet):
 
 
 class HomeContentViewSet(viewsets.ModelViewSet):
+    """
+    Get Home Content:
+    Updated on: 
+        - July 31st : Various changes related to Order
+    """
     serializer_class = HomeContentSerializer
 
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
@@ -76,11 +86,18 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Product.objects.filter(seller__id=seller_id, is_posted=True)
         elif action_id is not None:
             print "Action ID: %s" % action_id
-            if int(action_id) == 3:
+            if int(action_id) == constants.ACTION_SALE_PRODUCT:
                 return Product.objects.filter(is_discount=True, is_posted=True)
         elif category_id is not None and category_name is not None:
             print "Get product by category id: %s, name: %s" % (category_id, category_name)
-            return Product.objects.filter(category_id=int(category_id), category__name__contains=category_name)
+
+            if (category_name == constants.CATEGORY_ALL):
+                print "Request all products."
+                return Product.objects.all()
+
+            return Product.objects.filter(
+                category__name__contains=category_name
+            )
 
         print "Show all products."
         return Product.objects.filter(is_posted=True)
@@ -185,12 +202,59 @@ class AddressBookSerializerViewSet(viewsets.ModelViewSet):
 
 
 class CustomerViewSet(viewsets.ModelViewSet):
-    queryset = Customer.objects.all()
     serializer_class = CustomersSerializer
 
     # Special permission to allow anyone to register as
     # a customer
     permission_classes = (permissions.AllowAny,)
+
+    def get_object(self):
+        # Get pk from URL (customer/{pk}/)
+        # {pk} could be a user Token on Customer id
+        pk_data = self.kwargs.get('pk')
+
+        print "PK DATA: %s" % pk_data
+
+        try:
+            int_pk = int(pk_data)
+            cust = Customer.objects.filter(id=int_pk)
+            print "INT PK FOUND: %d, cust: %s" % (int_pk, cust)
+            return get_object_or_404(queryset=cust)
+
+        except ValueError as value_error_ex:
+
+            print "Exception: %s" % value_error_ex.message
+
+            user_token = Token.objects.filter(key__exact=pk_data).first()
+            if user_token is not None:
+                print "User token %s" % user_token
+                print "User token-user %s" % user_token.user
+
+                selected_cust = Customer.objects.filter(
+                    related_user=user_token.user
+                )
+
+                return get_object_or_404(queryset=selected_cust)
+
+
+    def get_queryset(self):
+        query_data = self.request.query_params
+        token_data = query_data.get('token_key')
+        user_token = Token.objects.filter(key__exact=token_data).first()
+
+        print "Query data: %s" % query_data
+
+        if user_token is not None:
+            print "User token %s" % user_token
+            print "User token-user %s" % user_token.user
+
+            selected_cust = Customer.objects.filter(
+                related_user=user_token.user
+            )
+
+            return selected_cust
+
+        return Customer.objects.none()
 
 
 class SellerViewSet(viewsets.ModelViewSet):
@@ -222,9 +286,22 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
 
 
 class OrderedProductViewSet(viewsets.ModelViewSet):
-    queryset = OrderedProduct.objects.all()
     serializer_class = OrderedProductSerializer
     permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        """
+        Ordered Product based on Logged in user.
+        """
+        user = self.request.user
+        print "Logged user: %s" % user.username
+        active_customer = Customer.objects.filter(related_user=user).first()
+        if active_customer is not None:
+            return OrderedProduct.objects.filter(order_details__customer=active_customer)
+        else:
+            print "User not login"
+
+        return Response(status=status.HTTP_204_NO_CONTENT, data=[])
 
 
 class CollectedProductViewSet(viewsets.ModelViewSet):

@@ -349,6 +349,10 @@ class InsertOrderDetailsSerializer(serializers.ModelSerializer):
         address_book_data = validated_data.pop('address_book_id')
         generated_order_id = stringutils.mobile_order_id_generator()
         created_datetime = timezone.now()
+        # Expire in 24 Hours
+        expire_payment_time = timezone.now() + timezone.timedelta(days=0, hours=24, minutes=0, seconds=0)
+        # Expire in 7 days
+        expire_order_time = timezone.now() + timezone.timedelta(days=7, hours=0, minutes=0, seconds=0)
 
         # PROCEED OTHER POST DATA
         post_data = self.context.get('request').POST
@@ -379,7 +383,9 @@ class InsertOrderDetailsSerializer(serializers.ModelSerializer):
             order_id=generated_order_id,
             customer=cust,
             address_book=address_book_data,
-            date=created_datetime
+            date=created_datetime,
+            payment_expiration_date=expire_payment_time,
+            order_expiration_date=expire_order_time
         )
 
         return new_order_details
@@ -395,16 +401,30 @@ class OrderDetailsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderDetails
-        fields = ('id', 'order_id', 'customer', 'address_book', 'date',)
+        fields = ('id', 'order_id', 'customer', 'address_book', 'date',
+                  'payment_expiration_date', 'order_expiration_date', 'order_status')
 
 
 class OrderedProductSerializer(serializers.ModelSerializer):
     order_details = OrderDetailsSerializer(many=False, read_only=True)
     shopping_carts = ShoppingCartSerializer(many=True, read_only=True)
 
+    total_shopping = serializers.SerializerMethodField()
+
+
     class Meta:
         model = OrderedProduct
-        fields = ('id', 'order_details', 'shopping_carts', 'status')
+        fields = ('id', 'order_details', 'shopping_carts', 'status', 'total_shopping')
+
+    # Calculate all shooping costs
+    def get_total_shopping(self, o):
+        if o.shopping_carts:
+            total_cost = 0
+            for sc in o.shopping_carts.all():
+                total_cost += sc.product.price * sc.quantity + sc.shipping.fee
+
+            print "Total cost", total_cost
+            return total_cost
 
 
 class CollectedProductSerializer(serializers.ModelSerializer):
