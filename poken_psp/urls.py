@@ -47,10 +47,12 @@ router.register(r'groups', views.GroupViewSet, 'groups')
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^poken_rest/', include(router.urls)),
-
+    url(r'^poken_web/', include('poken_web.urls', namespace="peber_web")),
     url(r'^poken_rest/poken_rest-auth/', include('rest_framework.urls', namespace='rest_framework'))
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
 # we are serving static and media files here at the moment - if we deploy this app to a server, we do necessarily want this
+if settings.DEBUG is True:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 urlpatterns += [
     url(r'^poken_rest/api-token-auth/', token_views.obtain_auth_token)
