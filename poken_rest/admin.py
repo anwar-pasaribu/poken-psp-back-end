@@ -2,9 +2,9 @@
 from __future__ import unicode_literals
 
 import datetime
+
 import pytz
 from django.contrib import admin
-from django.http import request
 
 from poken_rest.domain import Order
 from poken_rest.models import Seller, Customer, ProductBrand, ProductSize, ProductCategory, ProductImage, Courier, \
@@ -40,8 +40,13 @@ class HomeProductSectionAdmin(admin.ModelAdmin):
 
 
 class FeaturedItemAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'image', 'expiry_date', 'target_id',)
+    list_display = ('id', 'name', 'image', 'expiry_date', 'target_id', 'related_products')
 
+    def related_products(self, obj):
+        if obj.related_products:
+            return ''.join( '%d, ' % product.id for product in obj.related_products.all() ).rsplit(',', 1)[0]
+        else:
+            return 'Tidak ada data'
 
 class UserLocationAdmin(admin.ModelAdmin):
     list_display = ('id', 'address', 'city', 'district', 'zip', 'state')
@@ -209,8 +214,11 @@ class SubscribedAdmin(admin.ModelAdmin):
 
 
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'description', 'seller_name', 'discount_status', 'is_posted', 'is_new', 'date_created',
-                    'product_brand', 'category_name', 'size_name', 'stock', 'price', 'weight')
+    list_display = (
+    'id', 'name', 'description', 'seller_name', 'discount_status', 'is_posted', 'is_new', 'date_created',
+    'product_brand', 'category_name', 'size_name', 'stock', 'price', 'weight')
+
+    search_fields = ('name', 'description')
 
     def seller_name(self, obj):
         if obj.seller:

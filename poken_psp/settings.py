@@ -23,9 +23,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = 'u_51ivrtk65s0$b56n6)zrg8vyjw#7dsp-a65w48vsg*)_*axy'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.1.101', '192.168.1.100', 'localhost', '127.0.0.1', '192.168.43.152', '172.20.10.4', '139.59.245.162']
+ALLOWED_HOSTS = ['192.168.1.101', '192.168.1.100', 'localhost', '127.0.0.1', '192.168.43.152', '172.20.10.4', '139.59.245.162', '192.168.1.102']
 
 
 # Application definition
@@ -38,9 +38,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'django_filters',  # Filter pupose
+
     'poken_rest',
     'poken_web',
+
     'rest_framework.authtoken',
+    'django_cleanup',  # Automatically delete related files on Storage
 ]
 
 # Django REST Framework
@@ -52,7 +56,8 @@ REST_FRAMEWORK = {
     # 'DEFAULT_AUTHENTICATION_CLASSES': (
     #     'rest_framework.authentication.BasicAuthentication',
     # ),
-    'PAGE_SIZE': 10
+    'PAGE_SIZE': 10,
+    'DEFAULT_FILTER_BACKENDS': ('django_filters.rest_framework.DjangoFilterBackend',)
 }
 
 MIDDLEWARE = [
@@ -148,7 +153,4 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'uploaded_media/')
-
-print "Static root: %s" % STATIC_ROOT
-print "Media root: %s" % MEDIA_ROOT
+MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'uploaded_media/')

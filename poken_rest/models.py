@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 from django.utils import timezone
 
-from django.conf import settings
+from django.conf import settings as conf_settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.signals import post_save
@@ -17,7 +17,7 @@ from poken_rest.utils.file_helper import *
 PHONE_MAX_DIGIT = 15
 
 
-@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+@receiver(post_save, sender=conf_settings.AUTH_USER_MODEL)
 def create_auth_token(sender, instance=None, created=False, **kwargs):
     print "Sender: %s, kwargs: %s" % (sender, kwargs)
     if created:
@@ -26,7 +26,8 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
 
 class HomeItem(models.Model):
     featured_items = models.ManyToManyField('FeaturedItem', help_text='item yang akan ditampilkan di home screen')
-    sections = models.ManyToManyField('HomeProductSection', help_text='section barang')
+    sections = models.ManyToManyField('HomeProductSection',
+                                      help_text='section barang')
 
     class Meta:
         ordering = ('-id', )
@@ -45,6 +46,12 @@ class FeaturedItem(models.Model):
     image = models.ImageField(upload_to=generated_featured_image_file_name, blank=False)
     expiry_date = models.DateTimeField(auto_now_add=False)
     target_id = models.PositiveSmallIntegerField(default=0)
+
+    related_products = models.ManyToManyField(
+        'Product',
+        help_text='Barang terkait dengan halaman promosi.',
+        blank=True
+    )
 
     def __unicode__(self):
         return '{0}, {1}'.format(
@@ -135,13 +142,48 @@ class ProductCategory(models.Model):
     def __unicode__(self):
         return 'Category: {0}'.format(self.name)
 
+    class Meta(object):
+        ordering = ('name', )
+
 
 class UserImage(models.Model):
     profile_pic = models.ImageField(upload_to=generated_user_image_file_name, blank=True)
 
 
 class ProductImage(models.Model):
-    path = models.ImageField(upload_to=generated_product_image_file_name, blank=True)
+    path = models.ImageField(upload_to=generated_product_image_file_name)
+
+    # thumbnail
+    thumbnail = models.ImageField("Gambar kecil mewakili gambar asli", blank=True)
+
+    # title and description
+    title = models.CharField("Judul gambar yg akan muncul", max_length=255, default="Unknown Picture")
+    description = models.TextField("Deskripsi gambar", default="")
+
+    class Meta(object):
+        ordering = ('-id', )
+
+    def __unicode__(self):
+        return '%s' % self.title
+
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        """
+        On save, generate a new thumbnail
+        :param force_insert:
+        :param force_update:
+        :param using:
+        :param update_fields:
+        :return:
+        """
+        # generate and set thumbnail or none
+        self.thumbnail = create_thumbnail(self.path)
+
+        # Check if a pk has been set, meaning that we are not creating a new image, but updateing an existing one
+        # if self.pk:
+        #    force_update = True
+
+        # force update as we just changed something
+        super(ProductImage, self).save(force_update=force_update)
 
 
 class Courier(models.Model):

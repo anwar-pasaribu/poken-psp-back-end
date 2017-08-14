@@ -1,22 +1,15 @@
 # encoding=utf8
-import random
 
-from time import time
-from django.utils import timezone
-import datetime
-
+from django.contrib.auth import get_user_model  # If used custom user model
 from django.contrib.auth.models import User, Group
-from django.http import request
-from django.http.request import HttpRequest
+from django.utils import timezone
 from rest_framework import serializers
 
 from poken_rest.domain import Order
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, ProductCategory, \
-    ProductImage, ProductSize, FeaturedItem, HomeItem, HomeProductSection, ShoppingCart, AddressBook, Location, \
-    Shipping, OrderDetails, OrderedProduct, CollectedProduct, Subscribed
-
-from django.contrib.auth import get_user_model  # If used custom user model
-
+    ProductImage, ProductSize, FeaturedItem, HomeItem, HomeProductSection, ShoppingCart, AddressBook, Shipping, \
+    OrderDetails, OrderedProduct, CollectedProduct, Subscribed
+from poken_rest.poken_serializers.shipping import ShippingSerializer
 from poken_rest.utils import stringutils
 
 UserModel = get_user_model()
@@ -39,12 +32,6 @@ class GroupSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Group
         fields = ('url', 'name')
-
-
-class CategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductCategory
-        fields = ('name',)
 
 
 class BrandSerializer(serializers.ModelSerializer):
@@ -76,7 +63,8 @@ class ProductSellerSerializer(serializers.ModelSerializer):
 class ProductImagesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage
-        fields = ('path',)
+        fields = ('id', 'path', 'thumbnail',)
+        read_only_fields = ('thumbnail',)
 
 
 class ProductSizeSerializer(serializers.ModelSerializer):
@@ -110,7 +98,7 @@ class ProductCartSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ('name', 'images', 'size', 'stock', 'price', 'weight', 'seller')
+        fields = ('name', 'images', 'size', 'stock', 'price', 'weight', 'seller', 'is_discount', 'discount_amount')
 
 
 class InsertProductSerializer(serializers.ModelSerializer):
@@ -171,10 +159,18 @@ class SellerSerializer(serializers.ModelSerializer):
         return customer
 
 
+class FeaturedItemDetailedSerializer(serializers.ModelSerializer):
+    related_products = ProductSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = FeaturedItem
+        fields = ('id', 'name', 'image', 'expiry_date', 'target_id', 'related_products')
+
+
 class FeaturedItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = FeaturedItem
-        fields = ('name', 'image', 'expiry_date', 'target_id')
+        fields = ('id', 'name', 'image', 'expiry_date', 'target_id')
 
 
 class HomeProductSectionSerializer(serializers.ModelSerializer):
@@ -183,7 +179,7 @@ class HomeProductSectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HomeProductSection
-        fields = ('name', 'section_action_value', 'section_action_id', 'products', 'top_sellers')
+        fields = ('id', 'name', 'section_action_value', 'section_action_id', 'products', 'top_sellers')
 
 
 class HomeContentSerializer(serializers.ModelSerializer):
@@ -207,9 +203,13 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
         queryset=Shipping.objects.all()
     )
 
+    product = ProductSerializer(read_only=True)
+    shipping = ShippingSerializer(read_only=True)
+
     class Meta:
         model = ShoppingCart
-        fields = ('product_id', 'shipping_id', 'quantity')
+        fields = ('product_id', 'shipping_id', 'date', 'quantity', 'product',
+                  'shipping')
 
     def create(self, validated_data):
         request = self.context.get('request')  # InsertShoppingCartViewSet should pass 'request' object
@@ -249,15 +249,14 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
 
 
 class InsertOrderedProductSerializer(serializers.ModelSerializer):
-
     order_details_id = serializers.PrimaryKeyRelatedField(
-        many = False,
-        read_only = False,
-        queryset = OrderDetails.objects.all())
+        many=False,
+        read_only=False,
+        queryset=OrderDetails.objects.all())
 
     shopping_carts = serializers.SlugRelatedField(
         many=True,
-        read_only = False,
+        read_only=False,
         slug_field='id',
         queryset=ShoppingCart.objects.all())
 
@@ -294,7 +293,6 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
 
 
 class AddressBookSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = AddressBook
         fields = ('id', 'name', 'address', 'phone')
@@ -318,12 +316,6 @@ class AddressBookSerializer(serializers.ModelSerializer):
         return created_address_book
 
 
-class ShippingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Shipping
-        fields = ('id', 'name', 'fee',)
-
-
 class ShoppingCartSerializer(serializers.ModelSerializer):
     product = ProductCartSerializer(many=False)
     shipping = ShippingSerializer(many=False)
@@ -334,15 +326,14 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
 
 
 class InsertOrderDetailsSerializer(serializers.ModelSerializer):
-
     address_book_id = serializers.PrimaryKeyRelatedField(
-        many = False,
-        read_only = False,
-        queryset = AddressBook.objects.all())
+        many=False,
+        read_only=False,
+        queryset=AddressBook.objects.all())
 
     class Meta:
         model = OrderDetails
-        fields = ('id', 'address_book_id', )
+        fields = ('id', 'address_book_id',)
 
     def create(self, validated_data):
         request = self.context.get('request')  # InsertShoppingCartViewSet should pass 'request' object
@@ -411,16 +402,17 @@ class OrderedProductSerializer(serializers.ModelSerializer):
 
     total_shopping = serializers.SerializerMethodField()
 
-
     class Meta:
         model = OrderedProduct
         fields = ('id', 'order_details', 'shopping_carts', 'status', 'total_shopping')
 
     # Calculate all shooping costs
-    def get_total_shopping(self, o):
-        if o.shopping_carts:
+    def get_total_shopping(self, obj):
+        if obj.shopping_carts:
             total_cost = 0
-            for sc in o.shopping_carts.all():
+            for sc in obj.shopping_carts.all():
+                if sc.product.is_discount:
+                    sc.product.price = (sc.product.price - ((sc.product.price * sc.product.discount_amount) / 100))
                 total_cost += sc.product.price * sc.quantity + sc.shipping.fee
 
             print "Total cost", total_cost
@@ -460,7 +452,8 @@ class SubscribedSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Subscribed
-        fields = ('id', 'is_get_notif', 'seller_id', 'seller_name', 'seller_profile_pic', 'seller_tag_line', 'seller_location')
+        fields = (
+        'id', 'is_get_notif', 'seller_id', 'seller_name', 'seller_profile_pic', 'seller_tag_line', 'seller_location')
 
     def get_seller_profile_pic(self, obj):
         if obj.seller:
@@ -472,4 +465,3 @@ class SubscribedSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(image_url)
         else:
             return None
-

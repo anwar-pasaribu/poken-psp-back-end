@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import django_filters
 from django.contrib.auth.models import User, Group
 from rest_framework import viewsets, permissions, status
-from rest_framework.exceptions import NotFound
+# GET USER DATA BY TOKEN
+from rest_framework.authtoken.models import Token
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from poken_rest.filters.product_filter import ProductFilter
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, HomeItem, ShoppingCart, \
-    AddressBook, OrderedProduct, CollectedProduct, Subscribed, OrderDetails
+    AddressBook, OrderedProduct, CollectedProduct, Subscribed, OrderDetails, ProductImage, FeaturedItem, ProductCategory
 from poken_rest.serializers import UserSerializer, GroupSerializer, ProductSerializer, UserLocationSerializer, \
     CustomersSerializer, SellerSerializer, ProductBrandSerializer, InsertProductSerializer, HomeContentSerializer, \
     ShoppingCartSerializer, InsertShoppingCartSerializer, AddressBookSerializer, OrderedProductSerializer, \
-    CollectedProductSerializer, SubscribedSerializer, InsertOrderedProductSerializer, InsertOrderDetailsSerializer
-
-# GET USER DATA BY TOKEN
-from rest_framework.authtoken.models import Token
-
+    CollectedProductSerializer, SubscribedSerializer, InsertOrderedProductSerializer, InsertOrderDetailsSerializer, \
+    ProductImagesSerializer, FeaturedItemDetailedSerializer, ProductCartSerializer, ProductCategorySerializer
 # Create your views here.
 from poken_rest.utils import constants
 
@@ -37,6 +37,18 @@ class GroupViewSet(viewsets.ModelViewSet):
     serializer_class = GroupSerializer
 
 
+class FeaturedItemDetailViewSet(viewsets.ModelViewSet):
+    serializer_class = FeaturedItemDetailedSerializer
+    permission_classes = (permissions.AllowAny, )
+    queryset = FeaturedItem.objects.all()
+
+
+class ProductCategoryViewSet(viewsets.ModelViewSet):
+    serializer_class = ProductCategorySerializer
+    permission_classes = (permissions.AllowAny, )
+    queryset = ProductCategory.objects.all()
+
+
 class HomeContentViewSet(viewsets.ModelViewSet):
     """
     Get Home Content:
@@ -48,9 +60,9 @@ class HomeContentViewSet(viewsets.ModelViewSet):
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
 
     def get_queryset(self):
-        latestItem = HomeItem.objects.latest('id')
-        print "Max ID: %s" % latestItem.id
-        print "Section name: %s" % latestItem.sections.all().count()
+        latest_item = HomeItem.objects.latest('id')
+        print "Max ID: %s" % latest_item.id
+        print "Section name: %s" % latest_item.sections.all().count()
 
         data = self.request.query_params
 
@@ -72,6 +84,10 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
 
+    # [Aug 6th] Filter
+    filter_backends = (django_filters.rest_framework.DjangoFilterBackend,)
+    filter_class = ProductFilter
+
     def get_queryset(self):
         data = self.request.query_params
         seller_id = data.get('seller_id', None)
@@ -91,7 +107,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         elif category_id is not None and category_name is not None:
             print "Get product by category id: %s, name: %s" % (category_id, category_name)
 
-            if (category_name == constants.CATEGORY_ALL):
+            if category_name == constants.CATEGORY_ALL:
                 print "Request all products."
                 return Product.objects.all()
 
@@ -106,6 +122,11 @@ class ProductViewSet(viewsets.ModelViewSet):
 class InsertProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = InsertProductSerializer
+
+
+class InsertProductImageViewSet(viewsets.ModelViewSet):
+    queryset = ProductImage.objects.all()
+    serializer_class = ProductImagesSerializer
 
 
 class InsertShoppingCartViewSet(viewsets.ModelViewSet):
@@ -187,11 +208,11 @@ class AddressBookSerializerViewSet(viewsets.ModelViewSet):
         print "Logged user: %s" % user.username
         cust = Customer.objects.get(related_user=user)
         print "Cust : %s" % cust
-        addressBookSet = AddressBook.objects.filter(customer=cust)
+        address_book_set = AddressBook.objects.filter(customer=cust)
 
-        print "Address book set: %s" % addressBookSet
+        print "Address book set: %s" % address_book_set
 
-        return addressBookSet
+        return address_book_set
 
     def get_serializer_context(self):
         """
@@ -235,7 +256,6 @@ class CustomerViewSet(viewsets.ModelViewSet):
                 )
 
                 return get_object_or_404(queryset=selected_cust)
-
 
     def get_queryset(self):
         query_data = self.request.query_params
