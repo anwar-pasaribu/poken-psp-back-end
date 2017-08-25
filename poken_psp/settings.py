@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+from poken_psp import properties
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -23,7 +25,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = 'u_51ivrtk65s0$b56n6)zrg8vyjw#7dsp-a65w48vsg*)_*axy'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = properties.IS_DEBUG
 
 ALLOWED_HOSTS = ['192.168.28.2', '192.168.1.101', '192.168.1.100',
                  'localhost', '127.0.0.1', '192.168.43.152', '172.20.10.4',
