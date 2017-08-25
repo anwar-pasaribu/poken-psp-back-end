@@ -11,12 +11,14 @@ from rest_framework.response import Response
 
 from poken_rest.filters.product_filter import ProductFilter
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, HomeItem, ShoppingCart, \
-    AddressBook, OrderedProduct, CollectedProduct, Subscribed, OrderDetails, ProductImage, FeaturedItem, ProductCategory
+    AddressBook, OrderedProduct, CollectedProduct, Subscribed, OrderDetails, ProductImage, FeaturedItem, \
+    ProductCategory, ProductCategoryFeatured
 from poken_rest.serializers import UserSerializer, GroupSerializer, ProductSerializer, UserLocationSerializer, \
     CustomersSerializer, SellerSerializer, ProductBrandSerializer, InsertProductSerializer, HomeContentSerializer, \
     ShoppingCartSerializer, InsertShoppingCartSerializer, AddressBookSerializer, OrderedProductSerializer, \
     CollectedProductSerializer, SubscribedSerializer, InsertOrderedProductSerializer, InsertOrderDetailsSerializer, \
-    ProductImagesSerializer, FeaturedItemDetailedSerializer, ProductCartSerializer, ProductCategorySerializer
+    ProductImagesSerializer, FeaturedItemDetailedSerializer, ProductCartSerializer, ProductCategorySerializer, \
+    ProductCategoryFeaturedSerializer
 # Create your views here.
 from poken_rest.utils import constants
 
@@ -47,6 +49,12 @@ class ProductCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = ProductCategorySerializer
     permission_classes = (permissions.AllowAny, )
     queryset = ProductCategory.objects.all()
+
+
+class ProductCategoryFeaturedViewSet(viewsets.ModelViewSet):
+    serializer_class = ProductCategoryFeaturedSerializer
+    permission_classes = (permissions.AllowAny, )
+    queryset = ProductCategoryFeatured.objects.all()
 
 
 class HomeContentViewSet(viewsets.ModelViewSet):
@@ -87,6 +95,13 @@ class ProductViewSet(viewsets.ModelViewSet):
     # [Aug 6th] Filter
     filter_backends = (django_filters.rest_framework.DjangoFilterBackend,)
     filter_class = ProductFilter
+
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(ProductViewSet, self).get_serializer_context()
+        return context
 
     def get_queryset(self):
         data = self.request.query_params

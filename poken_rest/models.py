@@ -44,20 +44,40 @@ class HomeProductSection(models.Model):
 class FeaturedItem(models.Model):
     name = models.CharField(max_length=250, blank=True)
     image = models.ImageField(upload_to=generated_featured_image_file_name, blank=False)
+    # thumbnail
+    thumbnail = models.ImageField("Gambar kecil mewakili gambar asli", blank=True)
     expiry_date = models.DateTimeField(auto_now_add=False)
     target_id = models.PositiveSmallIntegerField(default=0)
 
-    related_products = models.ManyToManyField(
-        'Product',
-        help_text='Barang terkait dengan halaman promosi.',
-        blank=True
-    )
+    featured_text = models.TextField("Teks promosi", default="Teks promosi")
 
     def __unicode__(self):
         return '{0}, {1}'.format(
             self.name,
             self.pk
         )
+
+    class Meta:
+        ordering = ('-id', )
+
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        """
+        On save, generate a new thumbnail
+        :param force_insert:
+        :param force_update:
+        :param using:
+        :param update_fields:
+        :return:
+        """
+        # generate and set thumbnail or none
+        self.thumbnail = create_featured_image_thumbnail(self.image)
+
+        # Check if a pk has been set, meaning that we are not creating a new image, but updateing an existing one
+        # if self.pk:
+        #    force_update = True
+
+        # force update as we just changed something
+        super(FeaturedItem, self).save(force_update=force_update)
 
 
 class UserLocation(models.Model):
@@ -145,6 +165,23 @@ class ProductCategory(models.Model):
     class Meta(object):
         ordering = ('name', )
 
+class ProductCategoryFeatured(models.Model):
+    product_category = models.ForeignKey('ProductCategory')
+    products = models.ManyToManyField('Product', help_text='3 produk yg ditampilakan')
+
+    # Featured item expiration
+    featured_expiration_date = models.DateTimeField(
+        "Tanggal berakhir promot",
+        auto_now_add=False,
+        null=True,
+        default=timezone.now
+    )
+
+    def __unicode__(self):
+        return 'Featured cat: {0}'.format(self.product_category.name)
+
+    class Meta(object):
+        ordering = ('-product_category__name', )
 
 class UserImage(models.Model):
     profile_pic = models.ImageField(upload_to=generated_user_image_file_name, blank=True)

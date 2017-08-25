@@ -9,7 +9,7 @@ from django.contrib import admin
 from poken_rest.domain import Order
 from poken_rest.models import Seller, Customer, ProductBrand, ProductSize, ProductCategory, ProductImage, Courier, \
     UserLocation, Location, AddressBook, Shipping, OrderDetails, Subscribed, Product, ShoppingCart, OrderedProduct, \
-    CollectedProduct, FeaturedItem, HomeProductSection, HomeItem, UserImage
+    CollectedProduct, FeaturedItem, HomeProductSection, HomeItem, UserImage, ProductCategoryFeatured
 
 
 class HomeItemAdmin(admin.ModelAdmin):
@@ -40,11 +40,20 @@ class HomeProductSectionAdmin(admin.ModelAdmin):
 
 
 class FeaturedItemAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'image', 'expiry_date', 'target_id', 'related_products')
+    list_display = ('id', 'name', 'image', 'expiry_date', 'target_id',)
 
     def related_products(self, obj):
         if obj.related_products:
             return ''.join( '%d, ' % product.id for product in obj.related_products.all() ).rsplit(',', 1)[0]
+        else:
+            return 'Tidak ada data'
+
+class ProductCategoryFeaturedAdmin(admin.ModelAdmin):
+    list_display = ('id', 'product_category', 'related_products')
+
+    def related_products(self, obj):
+        if obj.products:
+            return ''.join( '%d, ' % product.id for product in obj.products.all() ).rsplit(',', 1)[0]
         else:
             return 'Tidak ada data'
 
@@ -308,6 +317,7 @@ class CollectedProductAdmin(admin.ModelAdmin):
 admin.site.register(HomeItem, HomeItemAdmin)
 admin.site.register(HomeProductSection, HomeProductSectionAdmin)
 admin.site.register(FeaturedItem, FeaturedItemAdmin)
+admin.site.register(ProductCategoryFeatured, ProductCategoryFeaturedAdmin)
 admin.site.register(Seller, SellerAdmin)
 admin.site.register(Customer, CustomerAdmin)
 admin.site.register(ProductBrand, ProductBrandAdmin)

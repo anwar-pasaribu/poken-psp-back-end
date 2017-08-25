@@ -43,7 +43,7 @@ class BrandSerializer(serializers.ModelSerializer):
 class ProductCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductCategory
-        fields = ('name',)
+        fields = ('id', 'name',)
 
 
 class ProductBrandSerializer(serializers.ModelSerializer):
@@ -55,9 +55,22 @@ class ProductBrandSerializer(serializers.ModelSerializer):
 class ProductSellerSerializer(serializers.ModelSerializer):
     location = serializers.SlugRelatedField(many=False, read_only=True, slug_field='city')
 
+    store_avatar = serializers.SerializerMethodField()  # Get get_seller_avatars method
+
+    def get_store_avatar(self, obj):
+        if obj.user_image:
+            request = self.context.get('request')  # View set should pass 'request' object
+            if obj.user_image.profile_pic is None:
+                return ""
+            image_url = obj.user_image.profile_pic.url
+            print "Images: %s" % image_url
+            return request.build_absolute_uri(image_url)
+        else:
+            return ""
+
     class Meta:
         model = Seller
-        fields = ('id', 'store_name', 'tag_line', 'phone_number', 'location')
+        fields = ('id', 'store_avatar', 'store_name', 'tag_line', 'phone_number', 'location')
 
 
 class ProductImagesSerializer(serializers.ModelSerializer):
@@ -99,6 +112,14 @@ class ProductCartSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ('name', 'images', 'size', 'stock', 'price', 'weight', 'seller', 'is_discount', 'discount_amount')
+
+
+class ProductCategoryFeaturedSerializer(serializers.ModelSerializer):
+    product_category = ProductCategorySerializer(many=False, read_only=True)
+    products = ProductCartSerializer(many=True, read_only=True)
+    class Meta:
+        model = ProductCategory
+        fields = ('id', 'product_category', 'products')
 
 
 class InsertProductSerializer(serializers.ModelSerializer):
@@ -160,17 +181,15 @@ class SellerSerializer(serializers.ModelSerializer):
 
 
 class FeaturedItemDetailedSerializer(serializers.ModelSerializer):
-    related_products = ProductSerializer(many=True, read_only=True)
-
     class Meta:
         model = FeaturedItem
-        fields = ('id', 'name', 'image', 'expiry_date', 'target_id', 'related_products')
+        fields = ('id', 'name', 'image', 'expiry_date', 'target_id', 'featured_text')
 
 
 class FeaturedItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = FeaturedItem
-        fields = ('id', 'name', 'image', 'expiry_date', 'target_id')
+        fields = ('id', 'name', 'image', 'thumbnail', 'expiry_date', 'target_id')
 
 
 class HomeProductSectionSerializer(serializers.ModelSerializer):
@@ -322,7 +341,7 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ShoppingCart
-        fields = ('id', 'product', 'date', 'quantity', 'shipping', 'shipping_fee')
+        fields = ('id', 'product', 'date', 'quantity', 'shipping', 'shipping_fee', 'extra_note')
 
 
 class InsertOrderDetailsSerializer(serializers.ModelSerializer):
@@ -435,7 +454,7 @@ class CollectedProductSerializer(serializers.ModelSerializer):
             request = self.context.get('request')  # View set should pass 'request' object
             if obj.product.images.first() is None:
                 return ""
-            image_url = obj.product.images.first().path.url
+            image_url = obj.product.images.first().thumbnail.url
             print "Images: %s" % image_url
             return request.build_absolute_uri(image_url)
         else:
