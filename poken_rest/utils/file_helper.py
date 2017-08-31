@@ -61,7 +61,7 @@ def generated_featured_image_file_name(instance, filename):
     )
 
 
-def create_thumbnail(input_image, thumbnail_size=(512, 512)):
+def create_thumbnail(input_image, thumbnail_size=(320, 320)):
     """
     Create a thumbnail of an existing image
     :param input_image:
@@ -100,7 +100,7 @@ def create_thumbnail(input_image, thumbnail_size=(512, 512)):
         os.makedirs(abs_image_dir)
 
     # save the image in MEDIA_ROOT and return the filename
-    image.save(os.path.join(django_conf_settings.MEDIA_ROOT, new_filename), 'WEBP', quality=90)
+    image.convert('RGB').save(os.path.join(django_conf_settings.MEDIA_ROOT, new_filename), 'WEBP', quality=50)
 
     return new_filename
 
@@ -130,13 +130,15 @@ def create_featured_image_thumbnail(input_image, thumbnail_size=(1024, 1024)):
     ).rsplit(FEATURED_IMG_INITIAL_NAME, 1)
     # add _thumb to the fileniame
     new_filename = img_location + "thumb/" + FEATURED_IMG_INITIAL_NAME + img_name
+    print ("File name" + new_filename)
 
     # MAKE SURE DIR EXIST
     abs_image_dir, file_name = os.path.join(django_conf_settings.MEDIA_ROOT, new_filename).rsplit(FEATURED_IMG_INITIAL_NAME, 1)
+    print ("Abs location: " + abs_image_dir)
     if not os.path.exists(abs_image_dir):
         os.makedirs(abs_image_dir)
 
     # save the image in MEDIA_ROOT and return the filename
-    image.save(os.path.join(django_conf_settings.MEDIA_ROOT, new_filename), 'WEBP', quality=90)
+    image.convert('RGB').save(os.path.join(django_conf_settings.MEDIA_ROOT, new_filename), 'WEBP', quality=50)
 
     return new_filename

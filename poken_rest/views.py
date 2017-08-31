@@ -9,6 +9,8 @@ from rest_framework.authtoken.models import Token
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from django.db.models import Q
+
 from poken_rest.filters.product_filter import ProductFilter
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, HomeItem, ShoppingCart, \
     AddressBook, OrderedProduct, CollectedProduct, Subscribed, OrderDetails, ProductImage, FeaturedItem, \
@@ -93,8 +95,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
 
     # [Aug 6th] Filter
-    filter_backends = (django_filters.rest_framework.DjangoFilterBackend,)
-    filter_class = ProductFilter
+    # filter_backends = (django_filters.rest_framework.DjangoFilterBackend,)
+    # filter_class = ProductFilter
 
     def get_serializer_context(self):
         """
@@ -107,6 +109,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         data = self.request.query_params
         seller_id = data.get('seller_id', None)
         action_id = data.get('action_id', None)
+
+        # URL PARAMS
+        product_name = data.get('name', None)
 
         # BROWSE PRODUCT BY CATEGORY
         category_id = data.get('category_id', None)
@@ -129,6 +134,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Product.objects.filter(
                 category__name__contains=category_name
             )
+        elif product_name and category_name is not None:
+            print("Search category name: \"%s\" and product name: \"%s\"" % (category_name, product_name))
+            return Product.objects.filter(Q(name__icontains=str(product_name)) | Q(category__name__icontains=str(category_name)))
 
         print "Show all products."
         return Product.objects.filter(is_posted=True)

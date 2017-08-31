@@ -7,7 +7,8 @@ from poken_rest.models import Product
 class ProductFilter(filters.FilterSet):
     name = django_filters.CharFilter(lookup_expr='icontains')
     description = django_filters.CharFilter(lookup_expr='icontains')
+    category_name = django_filters.CharFilter(lookup_expr='icontains', name='category__name')
 
     class Meta:
         model = Product
-        fields = ['name', 'description']
+        fields = ['name', 'description', 'category_name']
