@@ -31,6 +31,7 @@ router.register(r'insert_ordered_product', views.InsertOrderedProductViewSet, 'i
 router.register(r'insert_product', views.InsertProductViewSet, 'insert_product')
 router.register(r'insert_product_image', views.InsertProductImageViewSet, 'insert_product_image')
 router.register(r'insert_cart', views.InsertShoppingCartViewSet, 'insert_cart')
+router.register(r'insert_user', views.InsertUserViewSet, 'insert_user')
 router.register(r'insert_order_detail', views.InsertOrderDetailsViewSet, 'insert_order_detail')
 router.register(r'product_brand', views.ProductBrandViewSet, 'product_brand')
 router.register(r'product_category', views.ProductCategoryViewSet, 'product_category')

@@ -1,25 +1,23 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import django_filters
 from django.contrib.auth.models import User, Group
+from django.db.models import Q
 from rest_framework import viewsets, permissions, status
 # GET USER DATA BY TOKEN
 from rest_framework.authtoken.models import Token
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
-from django.db.models import Q
-
-from poken_rest.filters.product_filter import ProductFilter
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, HomeItem, ShoppingCart, \
     AddressBook, OrderedProduct, CollectedProduct, Subscribed, OrderDetails, ProductImage, FeaturedItem, \
     ProductCategory, ProductCategoryFeatured
+from poken_rest.poken_serializers.user import UserRegisterSerializer as user_UserSerializer
 from poken_rest.serializers import UserSerializer, GroupSerializer, ProductSerializer, UserLocationSerializer, \
     CustomersSerializer, SellerSerializer, ProductBrandSerializer, InsertProductSerializer, HomeContentSerializer, \
     ShoppingCartSerializer, InsertShoppingCartSerializer, AddressBookSerializer, OrderedProductSerializer, \
     CollectedProductSerializer, SubscribedSerializer, InsertOrderedProductSerializer, InsertOrderDetailsSerializer, \
-    ProductImagesSerializer, FeaturedItemDetailedSerializer, ProductCartSerializer, ProductCategorySerializer, \
+    ProductImagesSerializer, FeaturedItemDetailedSerializer, ProductCategorySerializer, \
     ProductCategoryFeaturedSerializer
 # Create your views here.
 from poken_rest.utils import constants
@@ -43,19 +41,19 @@ class GroupViewSet(viewsets.ModelViewSet):
 
 class FeaturedItemDetailViewSet(viewsets.ModelViewSet):
     serializer_class = FeaturedItemDetailedSerializer
-    permission_classes = (permissions.AllowAny, )
+    permission_classes = (permissions.AllowAny,)
     queryset = FeaturedItem.objects.all()
 
 
 class ProductCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = ProductCategorySerializer
-    permission_classes = (permissions.AllowAny, )
+    permission_classes = (permissions.AllowAny,)
     queryset = ProductCategory.objects.all()
 
 
 class ProductCategoryFeaturedViewSet(viewsets.ModelViewSet):
     serializer_class = ProductCategoryFeaturedSerializer
-    permission_classes = (permissions.AllowAny, )
+    permission_classes = (permissions.AllowAny,)
     queryset = ProductCategoryFeatured.objects.all()
 
 
@@ -136,7 +134,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
         elif product_name and category_name is not None:
             print("Search category name: \"%s\" and product name: \"%s\"" % (category_name, product_name))
-            return Product.objects.filter(Q(name__icontains=str(product_name)) | Q(category__name__icontains=str(category_name)))
+            return Product.objects.filter(
+                Q(name__icontains=str(product_name)) | Q(category__name__icontains=str(category_name)))
 
         print "Show all products."
         return Product.objects.filter(is_posted=True)
@@ -145,6 +144,12 @@ class ProductViewSet(viewsets.ModelViewSet):
 class InsertProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = InsertProductSerializer
+
+
+class InsertUserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = user_UserSerializer
+    permission_classes = ()
 
 
 class InsertProductImageViewSet(viewsets.ModelViewSet):
@@ -320,10 +325,11 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
         user = self.request.user
         print "Logged user: %s" % user.username
         active_cust = Customer.objects.filter(
-            related_user=user
+            related_user=user,
         ).first()
 
         return ShoppingCart.objects.filter(
+            product__stock__gte=1,
             customer=active_cust,
             orderedproduct=None)
 

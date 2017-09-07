@@ -143,7 +143,7 @@ class UserLocationSerializer(serializers.ModelSerializer):
 
 class CustomersSerializer(serializers.ModelSerializer):
     related_user = UserSerializer(many=False, read_only=False)
-    location = UserLocationSerializer(many=False, read_only=False)
+    location = UserLocationSerializer(many=False, read_only=False, allow_null=True)
 
     class Meta:
         model = Customer
@@ -297,9 +297,10 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
         print "order_details data: %s" % order_details
         print "shopping_carts data: %s" % shopping_carts
 
-        # 1 - CREATE ORDER DETAILS
-        # generated_order_id = stringutils.mobile_order_id_generator()
-        # print "Generated order id: %s " % generated_order_id
+        # Substract product stock by one
+        for shopping_item in shopping_carts:
+            shopping_item.product.stock = shopping_item.product.stock - shopping_item.quantity
+            shopping_item.product.save()
 
         new_ordered_product = OrderedProduct.objects.create(
             order_details=order_details,

@@ -129,7 +129,7 @@ class Customer(models.Model):
     related_user = models.ForeignKey(User, default=None, related_name='customer', on_delete=models.CASCADE)
 
     phone_number = models.CharField(max_length=PHONE_MAX_DIGIT)
-    location = models.ForeignKey(UserLocation, related_name='location', on_delete=models.CASCADE)
+    location = models.ForeignKey(UserLocation, related_name='location', on_delete=models.CASCADE, blank=True, null=True)
 
     user_image = models.ForeignKey('UserImage', blank=True, null=True)
 

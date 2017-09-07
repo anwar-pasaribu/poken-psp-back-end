@@ -8,10 +8,12 @@ from django.conf import settings as django_conf_settings
 PRODUCT_IMG_INITIAL_NAME = "PIMG"
 FEATURED_IMG_INITIAL_NAME = "FIMG"
 
+
 def generated_logo_file_name(instance, filename):
     cleared_file_name = str(filename.replace(' ', '_'))
     print ("File name: %s" % filename)
     return "brand_logo/%s_%s" % (str(time()).replace('.', '_'), cleared_file_name)
+
 
 def generated_featured_image_file_location():
     year = datetime.datetime.now().year
@@ -22,6 +24,7 @@ def generated_featured_image_file_location():
     rel_product_image_path = "featured_image/%s/%s/%s" % (str(year), str(month), str(day))
 
     return rel_product_image_path
+
 
 def generated_product_image_file_location():
     year = datetime.datetime.now().year
@@ -34,6 +37,7 @@ def generated_product_image_file_location():
 
     return rel_product_image_path
 
+
 def generated_product_image_file_name(instance, filename):
     file_name, file_ext = str(filename).rsplit('.', 1)
 
@@ -45,10 +49,12 @@ def generated_product_image_file_name(instance, filename):
         file_ext
     )
 
+
 def generated_user_image_file_name(instance, filename):
     cleared_file_name = str(filename.replace(' ', '_'))
     print ("File name: %s" % filename)
     return "user_image/%s_%s" % (str(time()).replace('.', '_'), cleared_file_name)
+
 
 def generated_featured_image_file_name(instance, filename):
     file_name, file_ext = str(filename).rsplit('.', 1)
@@ -94,7 +100,8 @@ def create_thumbnail(input_image, thumbnail_size=(320, 320)):
     print "Base name %s" % new_filename
 
     # MAKE SURE DIR EXIST
-    abs_image_dir, file_name = os.path.join(django_conf_settings.MEDIA_ROOT, new_filename).rsplit(PRODUCT_IMG_INITIAL_NAME, 1)
+    abs_image_dir, file_name = os.path.join(django_conf_settings.MEDIA_ROOT, new_filename).rsplit(
+        PRODUCT_IMG_INITIAL_NAME, 1)
     if not os.path.exists(abs_image_dir):
         print "Create new dir: %s" % abs_image_dir
         os.makedirs(abs_image_dir)
@@ -103,6 +110,7 @@ def create_thumbnail(input_image, thumbnail_size=(320, 320)):
     image.convert('RGB').save(os.path.join(django_conf_settings.MEDIA_ROOT, new_filename), 'WEBP', quality=50)
 
     return new_filename
+
 
 def create_featured_image_thumbnail(input_image, thumbnail_size=(1024, 1024)):
     """
@@ -133,7 +141,8 @@ def create_featured_image_thumbnail(input_image, thumbnail_size=(1024, 1024)):
     print ("File name" + new_filename)
 
     # MAKE SURE DIR EXIST
-    abs_image_dir, file_name = os.path.join(django_conf_settings.MEDIA_ROOT, new_filename).rsplit(FEATURED_IMG_INITIAL_NAME, 1)
+    abs_image_dir, file_name = os.path.join(django_conf_settings.MEDIA_ROOT, new_filename).rsplit(
+        FEATURED_IMG_INITIAL_NAME, 1)
     print ("Abs location: " + abs_image_dir)
     if not os.path.exists(abs_image_dir):
         os.makedirs(abs_image_dir)
