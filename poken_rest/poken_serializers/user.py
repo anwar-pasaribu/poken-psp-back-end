@@ -20,13 +20,11 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             'username': {'read_only': True}
         }
 
-    @staticmethod
-    def get_token(obj):
+    def get_token(self, obj):
         if obj.username:
             user = User.objects.filter(username=obj.username)
             if user:
                 token = Token.objects.filter(user=user).first()
-                print "Token: " + str(token)
                 if token:
                     return token.key
         else:
@@ -40,6 +38,5 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
         # Save Customer data
         cust = Customer.objects.update_or_create(related_user=user)
-        print "Created customer: " + str(cust)
 
         return user

@@ -272,6 +272,8 @@ class OrderDetails(models.Model):
     order_id = models.CharField(max_length=10, help_text="order id")
     customer = models.ForeignKey(Customer)
     address_book = models.ForeignKey(AddressBook, blank=True, null=True)
+
+    # Ordered time
     date = models.DateTimeField(auto_now_add=True)
 
     # Payment expiration
@@ -290,6 +292,9 @@ class OrderDetails(models.Model):
 
     # Moved from Ordered Product
     order_status = models.SmallIntegerField(default=Order.BOOKED)
+
+    # Shipping tracking id
+    shipping_tracking_id = models.CharField("Nomor Resi", max_length=50, default="", blank=True)
 
     def __unicode__(self):
         return '{%s}' % self.order_id

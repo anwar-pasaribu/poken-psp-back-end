@@ -166,6 +166,7 @@ class OrderDetailsAdmin(admin.ModelAdmin):
                     'cust_name',
                     'shipping_address',
                     'date',
+                    'shipping_tracking_id',
                     'payment_expiration',
                     'order_expiration',
                     'order_status_text')
@@ -202,6 +203,8 @@ class OrderDetailsAdmin(admin.ModelAdmin):
 
     def order_status_text(self, obj):
         status = obj.order_status
+        if status == Order.SOLD_OUT:
+            return Order.SOLD_OUT_TEXT
         if status == Order.BOOKED:
             return Order.BOOKED_TEXT
         elif status == Order.PAID:
@@ -216,6 +219,8 @@ class OrderDetailsAdmin(admin.ModelAdmin):
             return Order.REFUND_TEXT
         elif status == Order.EXPIRE:
             return Order.EXPIRE_TEXT
+        elif status == Order.COD_AUTO_SUCCESS:
+            return Order.COD_AUTO_SUCCESS_TEXT
 
 
 class SubscribedAdmin(admin.ModelAdmin):

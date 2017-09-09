@@ -1,5 +1,7 @@
 # encoding=utf8
 
+from __future__ import print_function
+
 from django.contrib.auth import get_user_model  # If used custom user model
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
@@ -10,6 +12,7 @@ from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBr
     ProductImage, ProductSize, FeaturedItem, HomeItem, HomeProductSection, ShoppingCart, AddressBook, Shipping, \
     OrderDetails, OrderedProduct, CollectedProduct, Subscribed
 from poken_rest.poken_serializers.shipping import ShippingSerializer
+from poken_rest.services import integration_slack
 from poken_rest.utils import stringutils
 
 UserModel = get_user_model()
@@ -57,20 +60,25 @@ class ProductSellerSerializer(serializers.ModelSerializer):
 
     store_avatar = serializers.SerializerMethodField()  # Get get_seller_avatars method
 
+    is_subscribed = serializers.SerializerMethodField()
+
     def get_store_avatar(self, obj):
         if obj.user_image:
             request = self.context.get('request')  # View set should pass 'request' object
             if obj.user_image.profile_pic is None:
                 return ""
             image_url = obj.user_image.profile_pic.url
-            print "Images: %s" % image_url
+            print("Images: %s" % image_url)
             return request.build_absolute_uri(image_url)
         else:
             return ""
 
+    def get_is_subscribed(self, obj):
+        return obj.subscribed_set.first().is_get_notif
+
     class Meta:
         model = Seller
-        fields = ('id', 'store_avatar', 'store_name', 'tag_line', 'phone_number', 'location')
+        fields = ('id', 'store_avatar', 'store_name', 'tag_line', 'phone_number', 'location', 'is_subscribed')
 
 
 class ProductImagesSerializer(serializers.ModelSerializer):
@@ -117,6 +125,7 @@ class ProductCartSerializer(serializers.ModelSerializer):
 class ProductCategoryFeaturedSerializer(serializers.ModelSerializer):
     product_category = ProductCategorySerializer(many=False, read_only=True)
     products = ProductCartSerializer(many=True, read_only=True)
+
     class Meta:
         model = ProductCategory
         fields = ('id', 'product_category', 'products')
@@ -154,9 +163,9 @@ class CustomersSerializer(serializers.ModelSerializer):
         address_data = validated_data.pop('location')
         user = get_user_model().objects.create_user(**user_data)
 
-        print "User data %s: " % user_data
-        print "Django User created %s: " % user
-        print "Location data %s: " % address_data
+        print("User data %s: " % user_data)
+        print("Django User created %s: " % user)
+        print("Location data %s: " % address_data)
 
         location_data = UserLocation.objects.create(**address_data)
         customer = Customer.objects.create(related_user=user, location=location_data, **validated_data)
@@ -245,13 +254,8 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
             orderedproduct=None
         ).first()
 
-        print "Current customer: %s" % cust
-        print "Product data: %s" % product_data
-        print "Shipping data: %s" % shipping_data
-        print "Quantity data: %s" % quantity_data
-
+        # Incement quantity
         if prev_cart_item is not None:
-            print "Prev. shopping cart available (quantity): %d" % prev_cart_item.quantity
             prev_cart_item.quantity = prev_cart_item.quantity + 1
             prev_cart_item.shipping = shipping_data
             prev_cart_item.save()
@@ -291,11 +295,11 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
         cust = Customer.objects.filter(related_user=request.user).first()
 
         for sc in shopping_carts:
-            print "Shopping cart item id: %s" % sc.id
+            print('Shopping cart item id: %s' % sc.id)
 
-        print "Current customer: %s" % cust
-        print "order_details data: %s" % order_details
-        print "shopping_carts data: %s" % shopping_carts
+        print('Current customer: %s' % cust)
+        print('order_details data: %s' % order_details)
+        print('shopping_carts data: %s' % shopping_carts)
 
         # Substract product stock by one
         for shopping_item in shopping_carts:
@@ -309,8 +313,48 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
         new_ordered_product.shopping_carts = shopping_carts
         new_ordered_product.save()
 
+        # Send notification to Slack
+        integration_slack.start_message_ordered_product(
+            new_ordered_product,
+            request
+        )
+
         return new_ordered_product
 
+class InsertCustomerSubscribedSerializer(serializers.ModelSerializer):
+    seller_id = serializers.PrimaryKeyRelatedField(
+        many=False,
+        read_only=False,
+        queryset=Seller.objects.all()
+    )
+
+    class Meta:
+        model = Subscribed
+        fields = ('seller_id', 'is_get_notif')
+
+    def create(self, validated_data):
+        request = self.context.get('request')  # InsertShoppingCartViewSet should pass 'request' object
+        seller = validated_data.pop('seller_id')
+        is_get_notif = validated_data.pop('is_get_notif')
+
+        cust = Customer.objects.filter(related_user=request.user).first()
+
+        prev_subscription = Subscribed.objects.filter(
+            seller=seller,
+            customer=cust
+        ).first()
+
+        if prev_subscription:
+            prev_subscription.is_get_notif = is_get_notif
+            prev_subscription.save()
+            return prev_subscription
+        else:
+            new_cust_subscribed = Subscribed.objects.create(
+                seller=seller,
+                customer=cust,
+                is_get_notif=is_get_notif
+            )
+            return new_cust_subscribed
 
 class AddressBookSerializer(serializers.ModelSerializer):
     class Meta:
@@ -326,8 +370,7 @@ class AddressBookSerializer(serializers.ModelSerializer):
         # address = validated_data.pop('address')
         # phone = validated_data.pop('phone')
 
-        print "Validated data: %s " % validated_data
-        print "Cust from validated_data: %s " % cust
+        print("Cust from validated_data: %s " % cust)
 
         created_address_book = AddressBook.objects.create(
             customer=cust,
@@ -375,19 +418,19 @@ class InsertOrderDetailsSerializer(serializers.ModelSerializer):
             previous_order_details = OrderDetails.objects.filter(pk=order_details_id).first()
 
             if previous_order_details is not None:
-                print "Previous order details: %s " % previous_order_details
+                print("Previous order details: %s " % previous_order_details)
                 previous_order_details.address_book = address_book_data
                 previous_order_details.date = created_datetime
                 previous_order_details.save()
                 return previous_order_details
             else:
-                print "NO PREVIOUS ORDER DETAIL. THEN CREATE ONE!!!"
+                print("NO PREVIOUS ORDER DETAIL. THEN CREATE ONE!!!")
 
         cust = Customer.objects.filter(related_user=request.user).first()
 
-        print "Validated data: %s" % validated_data.keys
-        print "Current customer: %s" % cust
-        print "address_book_data: %s" % address_book_data
+        print("Validated data: %s" % validated_data.keys)
+        print("Current customer: %s" % cust)
+        print("address_book_data: %s" % address_book_data)
 
         # CREATE ORDER DETAILS
         new_order_details = OrderDetails.objects.create(
@@ -412,7 +455,7 @@ class OrderDetailsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderDetails
-        fields = ('id', 'order_id', 'customer', 'address_book', 'date',
+        fields = ('id', 'order_id', 'customer', 'address_book', 'date', 'shipping_tracking_id',
                   'payment_expiration_date', 'order_expiration_date', 'order_status')
 
 
@@ -435,7 +478,6 @@ class OrderedProductSerializer(serializers.ModelSerializer):
                     sc.product.price = (sc.product.price - ((sc.product.price * sc.product.discount_amount) / 100))
                 total_cost += sc.product.price * sc.quantity + sc.shipping.fee
 
-            print "Total cost", total_cost
             return total_cost
 
 
@@ -456,7 +498,7 @@ class CollectedProductSerializer(serializers.ModelSerializer):
             if obj.product.images.first() is None:
                 return ""
             image_url = obj.product.images.first().thumbnail.url
-            print "Images: %s" % image_url
+            print("Images: %s" % image_url)
             return request.build_absolute_uri(image_url)
         else:
             return ""
@@ -473,7 +515,8 @@ class SubscribedSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscribed
         fields = (
-        'id', 'is_get_notif', 'seller_id', 'seller_name', 'seller_profile_pic', 'seller_tag_line', 'seller_location')
+            'id', 'is_get_notif', 'seller_id', 'seller_name', 'seller_profile_pic',
+            'seller_tag_line', 'seller_location')
 
     def get_seller_profile_pic(self, obj):
         if obj.seller:
@@ -481,7 +524,7 @@ class SubscribedSerializer(serializers.ModelSerializer):
             if obj.seller.user_image is None:
                 return None
             image_url = obj.seller.user_image.profile_pic.url
-            print "Images: %s" % image_url
+            print("Images: %s" % image_url)
             return request.build_absolute_uri(image_url)
         else:
             return None
