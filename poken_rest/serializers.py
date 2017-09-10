@@ -74,7 +74,10 @@ class ProductSellerSerializer(serializers.ModelSerializer):
             return ""
 
     def get_is_subscribed(self, obj):
-        return obj.subscribed_set.first().is_get_notif
+        if obj.subscribed_set.first():
+            return obj.subscribed_set.first().is_get_notif
+        else:
+            return False
 
     class Meta:
         model = Seller
