@@ -5,9 +5,9 @@ from __future__ import unicode_literals
 import datetime
 
 import pytz
-
 from django.contrib.auth.models import User, Group
 from django.db.models import Q
+from django.http.response import JsonResponse
 from rest_framework import viewsets, permissions, status
 # GET USER DATA BY TOKEN
 from rest_framework.authtoken.models import Token
@@ -17,15 +17,17 @@ from rest_framework.response import Response
 from poken_rest.domain import Order
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, HomeItem, ShoppingCart, \
     AddressBook, OrderedProduct, CollectedProduct, Subscribed, OrderDetails, ProductImage, FeaturedItem, \
-    ProductCategory, ProductCategoryFeatured
+    ProductCategory
+from poken_rest.poken_serializers.category import ProductCategoryFeaturedSerializer, ProductCategorySerializer
 from poken_rest.poken_serializers.user import UserRegisterSerializer as user_UserSerializer
 from poken_rest.serializers import UserSerializer, GroupSerializer, ProductSerializer, UserLocationSerializer, \
     CustomersSerializer, SellerSerializer, ProductBrandSerializer, InsertProductSerializer, HomeContentSerializer, \
     ShoppingCartSerializer, InsertShoppingCartSerializer, AddressBookSerializer, OrderedProductSerializer, \
     CollectedProductSerializer, SubscribedSerializer, InsertOrderedProductSerializer, InsertOrderDetailsSerializer, \
-    ProductImagesSerializer, FeaturedItemDetailedSerializer, ProductCategorySerializer, \
-    ProductCategoryFeaturedSerializer, InsertCustomerSubscribedSerializer
+    FeaturedItemDetailedSerializer, InsertCustomerSubscribedSerializer, InsertProductImageSerializer, \
+    OrderDetailsSerializer
 # Create your views here.
+from poken_rest.services import integration_slack
 from poken_rest.utils import constants
 
 
@@ -60,7 +62,14 @@ class ProductCategoryViewSet(viewsets.ModelViewSet):
 class ProductCategoryFeaturedViewSet(viewsets.ModelViewSet):
     serializer_class = ProductCategoryFeaturedSerializer
     permission_classes = (permissions.AllowAny,)
-    queryset = ProductCategoryFeatured.objects.all()
+    queryset = ProductCategory.objects.all()
+
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(ProductCategoryFeaturedViewSet, self).get_serializer_context()
+        return context
 
 
 class HomeContentViewSet(viewsets.ModelViewSet):
@@ -153,7 +162,8 @@ class InsertUserViewSet(viewsets.ModelViewSet):
 
 class InsertProductImageViewSet(viewsets.ModelViewSet):
     queryset = ProductImage.objects.all()
-    serializer_class = ProductImagesSerializer
+    serializer_class = InsertProductImageSerializer
+    permission_classes = (permissions.IsAuthenticated,)
 
 
 class InsertShoppingCartViewSet(viewsets.ModelViewSet):
@@ -336,6 +346,38 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
             orderedproduct=None)
 
 
+class OrderDetailsViewSet(viewsets.ModelViewSet):
+    serializer_class = OrderDetailsSerializer
+    permission_classes = (permissions.IsAuthenticated, )
+
+    def get_queryset(self):
+        """
+        Ordered Product based on Logged in user.
+        """
+        user = self.request.user
+        active_customer = Customer.objects.filter(related_user=user).first()
+
+        return OrderDetails.objects.filter(customer=active_customer)
+
+    def partial_update(self, request, *args, **kwargs):
+        testmodel = self.get_object()
+
+        order_status_data = request.data.get('order_status')
+        print("test model pk: %d" % testmodel.id)
+        print("data : %s" % str(order_status_data))
+
+        if order_status_data:
+            order_status_int = int(order_status_data)
+            if order_status_int == Order.RECEIVED:
+                print("User tend to update to received")
+                #
+
+        serializer = OrderDetailsSerializer(testmodel, data=request.data, partial=True)  # set partial=True to update a data partially
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data)
+
 class OrderedProductViewSet(viewsets.ModelViewSet):
     serializer_class = OrderedProductSerializer
     permission_classes = (permissions.IsAuthenticated,)
@@ -345,22 +387,22 @@ class OrderedProductViewSet(viewsets.ModelViewSet):
         Ordered Product based on Logged in user.
         """
         user = self.request.user
-        print("Logged user: %s" % user.username)
         active_customer = Customer.objects.filter(related_user=user).first()
 
-        # Check Order Details if it expire
+        # CHECK EXPIRE ORDER
+        # SET ORDER STATUS TO EXPIRE WHEN PAYMENT DUE IS OVER
         for order_detail in OrderDetails.objects.filter(customer=active_customer):
             now = datetime.datetime.now(pytz.utc)
             diff = order_detail.payment_expiration_date - now
-            if (diff.total_seconds() < 0):
-                print("Order %s %s" % (order_detail.order_id, Order.EXPIRE))
+            if diff.total_seconds() < 0 and order_detail.order_status == Order.BOOKED:
+                print("Order %s %s" % (order_detail.order_id, Order.EXPIRE_TEXT))
                 order_detail.order_status = Order.EXPIRE
                 order_detail.save()
 
-        if active_customer is not None:
-            return OrderedProduct.objects.filter(order_details__customer=active_customer)
+                # Send Slack Poken Order Expire Message
+                integration_slack.start_message_order_expire(order_detail, self.request)
 
-        return Response(status=status.HTTP_204_NO_CONTENT, data=[])
+        return OrderedProduct.objects.filter(order_details__customer=active_customer)
 
 
 class CollectedProductViewSet(viewsets.ModelViewSet):

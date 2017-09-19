@@ -67,6 +67,41 @@ def generated_featured_image_file_name(instance, filename):
     )
 
 
+def create_compressed_image(input_image, thumbnail_size=(1920, 1080)):
+
+    # make sure an image has been set
+    if not input_image or input_image == "":
+        return
+
+    # open image
+    image = Image.open(input_image)
+
+    # use PILs thumbnail method; use anti aliasing to make the scaled picture look good
+    image.thumbnail(thumbnail_size, Image.ANTIALIAS)
+
+    # parse the filename and scramble it
+    filename = input_image.name
+    img_location, img_name = str(
+        generated_product_image_file_name(
+            None,
+            os.path.basename(input_image.name)
+        )
+    ).rsplit(PRODUCT_IMG_INITIAL_NAME, 1)
+    # add _thumb to the fileniame
+    new_filename = img_location + PRODUCT_IMG_INITIAL_NAME + img_name
+
+    # MAKE SURE DIR EXIST
+    abs_image_dir, file_name = os.path.join(django_conf_settings.MEDIA_ROOT, new_filename).rsplit(
+        PRODUCT_IMG_INITIAL_NAME, 1)
+    if not os.path.exists(abs_image_dir):
+        os.makedirs(abs_image_dir)
+
+    # save the image in MEDIA_ROOT and return the filename
+    image.convert('RGB').save(os.path.join(django_conf_settings.MEDIA_ROOT, new_filename), 'WEBP', quality=80)
+
+    return new_filename
+
+
 def create_thumbnail(input_image, thumbnail_size=(320, 320)):
     """
     Create a thumbnail of an existing image
@@ -86,8 +121,6 @@ def create_thumbnail(input_image, thumbnail_size=(320, 320)):
 
     # parse the filename and scramble it
     filename = input_image.name
-    print "Original filename %s" % filename
-    print "Original filename %s" % os.path.basename(input_image.name)
     img_location, img_name = str(
         generated_product_image_file_name(
             None,
@@ -97,13 +130,10 @@ def create_thumbnail(input_image, thumbnail_size=(320, 320)):
     # add _thumb to the fileniame
     new_filename = img_location + "thumb/" + PRODUCT_IMG_INITIAL_NAME + img_name
 
-    print "Base name %s" % new_filename
-
     # MAKE SURE DIR EXIST
     abs_image_dir, file_name = os.path.join(django_conf_settings.MEDIA_ROOT, new_filename).rsplit(
         PRODUCT_IMG_INITIAL_NAME, 1)
     if not os.path.exists(abs_image_dir):
-        print "Create new dir: %s" % abs_image_dir
         os.makedirs(abs_image_dir)
 
     # save the image in MEDIA_ROOT and return the filename
@@ -138,12 +168,10 @@ def create_featured_image_thumbnail(input_image, thumbnail_size=(1024, 1024)):
     ).rsplit(FEATURED_IMG_INITIAL_NAME, 1)
     # add _thumb to the fileniame
     new_filename = img_location + "thumb/" + FEATURED_IMG_INITIAL_NAME + img_name
-    print ("File name" + new_filename)
 
     # MAKE SURE DIR EXIST
     abs_image_dir, file_name = os.path.join(django_conf_settings.MEDIA_ROOT, new_filename).rsplit(
         FEATURED_IMG_INITIAL_NAME, 1)
-    print ("Abs location: " + abs_image_dir)
     if not os.path.exists(abs_image_dir):
         os.makedirs(abs_image_dir)
 

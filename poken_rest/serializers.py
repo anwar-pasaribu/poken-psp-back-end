@@ -14,6 +14,8 @@ from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBr
 from poken_rest.poken_serializers.shipping import ShippingSerializer
 from poken_rest.services import integration_slack
 from poken_rest.utils import stringutils
+from django.utils.encoding import force_text
+from django.core.serializers.json import DjangoJSONEncoder
 
 UserModel = get_user_model()
 
@@ -43,12 +45,6 @@ class BrandSerializer(serializers.ModelSerializer):
         fields = ('name', 'logo')
 
 
-class ProductCategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductCategory
-        fields = ('id', 'name',)
-
-
 class ProductBrandSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductBrand
@@ -68,14 +64,18 @@ class ProductSellerSerializer(serializers.ModelSerializer):
             if obj.user_image.profile_pic is None:
                 return ""
             image_url = obj.user_image.profile_pic.url
-            print("Images: %s" % image_url)
             return request.build_absolute_uri(image_url)
         else:
             return ""
 
     def get_is_subscribed(self, obj):
-        if obj.subscribed_set.first():
-            return obj.subscribed_set.first().is_get_notif
+        user = self.context.get('request').user
+        print("User: " + str(user.id))
+        if user.id is not None:
+            subscribed = obj.subscribed_set.filter(customer__related_user=user).first()
+            print ("subs: %s" % subscribed)
+            if subscribed:
+                return subscribed.is_get_notif
         else:
             return False
 
@@ -125,13 +125,11 @@ class ProductCartSerializer(serializers.ModelSerializer):
         fields = ('name', 'images', 'size', 'stock', 'price', 'weight', 'seller', 'is_discount', 'discount_amount')
 
 
-class ProductCategoryFeaturedSerializer(serializers.ModelSerializer):
-    product_category = ProductCategorySerializer(many=False, read_only=True)
-    products = ProductCartSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = ProductCategory
-        fields = ('id', 'product_category', 'products')
+class LazyEncoder(DjangoJSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Product):
+            return force_text(obj)
+        return super(LazyEncoder, self).default(obj)
 
 
 class InsertProductSerializer(serializers.ModelSerializer):
@@ -324,6 +322,7 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
 
         return new_ordered_product
 
+
 class InsertCustomerSubscribedSerializer(serializers.ModelSerializer):
     seller_id = serializers.PrimaryKeyRelatedField(
         many=False,
@@ -358,6 +357,13 @@ class InsertCustomerSubscribedSerializer(serializers.ModelSerializer):
                 is_get_notif=is_get_notif
             )
             return new_cust_subscribed
+
+
+class InsertProductImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductImage
+        fields = ('id', 'path', 'title', 'description')
+
 
 class AddressBookSerializer(serializers.ModelSerializer):
     class Meta:

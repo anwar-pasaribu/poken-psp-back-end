@@ -26,6 +26,7 @@ from rest_framework.authtoken import views as token_views
 router = routers.DefaultRouter()
 router.register(r'home', views.HomeContentViewSet, 'home')
 router.register(r'featured', views.FeaturedItemDetailViewSet, 'featured')
+router.register(r'order_details', views.OrderDetailsViewSet, 'order_details')
 router.register(r'ordered_product', views.OrderedProductViewSet, 'ordered_product')
 router.register(r'insert_ordered_product', views.InsertOrderedProductViewSet, 'insert_ordered_product')
 router.register(r'insert_product', views.InsertProductViewSet, 'insert_product')

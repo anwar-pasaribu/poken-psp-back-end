@@ -19,7 +19,6 @@ PHONE_MAX_DIGIT = 15
 
 @receiver(post_save, sender=conf_settings.AUTH_USER_MODEL)
 def create_auth_token(sender, instance=None, created=False, **kwargs):
-    print "Sender: %s, kwargs: %s" % (sender, kwargs)
     if created:
         Token.objects.create(user=instance)
 
@@ -69,6 +68,9 @@ class FeaturedItem(models.Model):
         :param update_fields:
         :return:
         """
+        # Compress actual image size
+        self.image = create_compressed_image(self.image)
+
         # generate and set thumbnail or none
         self.thumbnail = create_featured_image_thumbnail(self.image)
 
@@ -212,6 +214,7 @@ class ProductImage(models.Model):
         :param update_fields:
         :return:
         """
+        self.path = create_compressed_image(self.path)
         # generate and set thumbnail or none
         self.thumbnail = create_thumbnail(self.path)
 
@@ -307,6 +310,13 @@ class Subscribed(models.Model):
 
     class Meta(object):
         ordering = ('-id', )
+
+    def __unicode__(self):
+        return "[%s] %s subscribed to %s" % (
+            str(self.is_get_notif),
+            self.customer.related_user.email,
+            self.seller.store_name
+        )
 
 
 class Product(models.Model):

@@ -29,7 +29,7 @@ DEBUG = properties.IS_DEBUG
 
 ALLOWED_HOSTS = ['192.168.28.2', '192.168.1.101', '192.168.1.100',
                  'localhost', '127.0.0.1', '192.168.43.152', '172.20.10.4',
-                 '139.59.245.162', '192.168.1.102', '192.168.1.112', '192.168.1.110']
+                 '139.59.245.162', '192.168.1.106', '192.168.1.112', '192.168.1.110']
 
 
 # Application definition
@@ -98,23 +98,23 @@ WSGI_APPLICATION = 'poken_psp.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
-}
-
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'poken',
-#         'USER': 'postgres',
-#         'PASSWORD': 'anwar_poken17',
-#         'HOST': '127.0.0.1',
-#         'PORT': '5432',
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
 #     }
 # }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': properties.DATABASE_DB_NAME,
+        'USER': properties.DATABASE_USERNAME,
+        'PASSWORD': properties.DATABASE_PASSWORD,
+        'HOST': properties.DATABASE_HOST,
+        'PORT': properties.DATABASE_PORT,
+    }
+}
 
 
 # Password validation
