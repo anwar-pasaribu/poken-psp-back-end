@@ -62,7 +62,7 @@ class UserLocationAdmin(admin.ModelAdmin):
 
 
 class SellerAdmin(admin.ModelAdmin):
-    list_display = ('thumbnail', 'user_info', 'bio', 'tag_line', 'phone_number')
+    list_display = ('id', 'store_name', 'user_info', 'bio', 'tag_line', 'phone_number', 'address')
 
     def user_info(self, obj):
         if obj.related_user:
@@ -70,11 +70,12 @@ class SellerAdmin(admin.ModelAdmin):
         else:
             return 'Data User bermasalah'
 
-    def thumbnail(self, obj):
-        if obj.user_image:
-            return '<img src="%s" style="height: 50px; width: auto">' % (obj.user_image.profile_pic.url)
+    def address(self, obj):
+        if obj.location.zip and obj.location.city:
+            return '%s %s' % (obj.location.city, obj.location.zip)
         else:
-            return "no image"
+            return 'ALAMAT TIDAK LENGKAP'
+
 
 
 class CustomerAdmin(admin.ModelAdmin):
