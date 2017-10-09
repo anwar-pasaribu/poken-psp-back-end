@@ -10,7 +10,7 @@ from rest_framework import serializers
 from poken_rest.domain import Order
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, ProductCategory, \
     ProductImage, ProductSize, FeaturedItem, HomeItem, HomeProductSection, ShoppingCart, AddressBook, Shipping, \
-    OrderDetails, OrderedProduct, CollectedProduct, Subscribed
+    OrderDetails, OrderedProduct, CollectedProduct, Subscribed, Location
 from poken_rest.poken_serializers.shipping import ShippingSerializer
 from poken_rest.services import integration_slack
 from poken_rest.utils import stringutils
@@ -70,10 +70,8 @@ class ProductSellerSerializer(serializers.ModelSerializer):
 
     def get_is_subscribed(self, obj):
         user = self.context.get('request').user
-        print("User: " + str(user.id))
         if user.id is not None:
             subscribed = obj.subscribed_set.filter(customer__related_user=user).first()
-            print ("subs: %s" % subscribed)
             if subscribed:
                 return subscribed.is_get_notif
         else:
@@ -237,7 +235,7 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ShoppingCart
-        fields = ('product_id', 'shipping_id', 'date', 'quantity', 'product',
+        fields = ('product_id', 'shipping_id', 'shipping_fee', 'shipping_service', 'date', 'quantity', 'product',
                   'shipping')
 
     def create(self, validated_data):
@@ -245,6 +243,8 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
         shipping_data = validated_data.pop('shipping_id')
         product_data = validated_data.pop('product_id')
         quantity_data = validated_data.pop('quantity')
+        shipping_fee_data = validated_data.pop('shipping_fee')
+        shipping_service_data = validated_data.pop('shipping_service')
 
         cust = Customer.objects.filter(related_user=request.user).first()
 
@@ -257,17 +257,17 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
 
         # Incement quantity
         if prev_cart_item is not None:
-            prev_cart_item.quantity = prev_cart_item.quantity + 1
-            prev_cart_item.shipping = shipping_data
-            prev_cart_item.save()
-
-            return prev_cart_item
+            if prev_cart_item.shipping == shipping_data:
+                return prev_cart_item
 
         new_cart = ShoppingCart.objects.create(
             customer=cust,
             product=product_data,
             shipping=shipping_data,
-            quantity=quantity_data)
+            quantity=quantity_data,
+            shipping_fee=shipping_fee_data,
+            shipping_service=shipping_service_data
+        )
 
         return new_cart
 
@@ -314,12 +314,6 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
         new_ordered_product.shopping_carts = shopping_carts
         new_ordered_product.save()
 
-        # Send notification to Slack
-        integration_slack.start_message_ordered_product(
-            new_ordered_product,
-            request
-        )
-
         return new_ordered_product
 
 
@@ -365,27 +359,62 @@ class InsertProductImageSerializer(serializers.ModelSerializer):
         fields = ('id', 'path', 'title', 'description')
 
 
+class AddressBookLocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Location
+        fields = ('city', 'district', 'subdistrict')
+
+
 class AddressBookSerializer(serializers.ModelSerializer):
+
+    location = AddressBookLocationSerializer()
+
     class Meta:
         model = AddressBook
-        fields = ('id', 'name', 'address', 'phone')
+        fields = ('id', 'name', 'address', 'phone', 'location')
 
     def create(self, validated_data):
         request = self.context.get('request')
 
+        # Dict convert OrderedDict to regular dict
+        location_post_data = dict(validated_data.pop('location'))
+
+        location_by_name = Location.objects.filter(
+            city=location_post_data['city'],
+            subdistrict=location_post_data['subdistrict'],
+            district=location_post_data['district']
+        ).first()
+
         cust = Customer.objects.filter(related_user=request.user).first()
-
-        # name = validated_data.pop('name')
-        # address = validated_data.pop('address')
-        # phone = validated_data.pop('phone')
-
-        print("Cust from validated_data: %s " % cust)
 
         created_address_book = AddressBook.objects.create(
             customer=cust,
-            location=None,
+            location=location_by_name,
             **validated_data)
+
         return created_address_book
+
+    def update(self, instance, validated_data):
+
+        if validated_data.has_key('location'):
+            # Dict convert OrderedDict to regular dict
+            location_post_data = dict(validated_data.pop('location'))
+
+            location_by_name = Location.objects.filter(
+                city=location_post_data['city'],
+                subdistrict=location_post_data['subdistrict'],
+                district=location_post_data['district']
+            ).first()
+
+            if location_by_name:
+                instance.location = location_by_name
+
+        for key in validated_data.keys():
+            setattr(instance, key, validated_data.get(key))
+
+        instance.save()
+
+        return instance
 
 
 class ShoppingCartSerializer(serializers.ModelSerializer):
@@ -405,7 +434,10 @@ class InsertOrderDetailsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderDetails
-        fields = ('id', 'address_book_id',)
+        fields = ('id', 'address_book_id', 'order_status')
+        extra_kwargs = {
+            'order_status': {'read_only': True}
+        }
 
     def create(self, validated_data):
         request = self.context.get('request')  # InsertShoppingCartViewSet should pass 'request' object

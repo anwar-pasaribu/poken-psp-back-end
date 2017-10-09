@@ -9,7 +9,6 @@ UserModel = get_user_model()
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
-
     token = serializers.SerializerMethodField()
 
     class Meta:
@@ -31,12 +30,18 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             return ""
 
     def create(self, validated_data):
-        user = super(UserRegisterSerializer, self).create(validated_data)
-        user.username = validated_data['email']
-        user.set_password(validated_data['password'])
-        user.save()
 
-        # Save Customer data
-        cust = Customer.objects.update_or_create(related_user=user)
+        if User.objects.filter(email=validated_data['email']).first():
+            details = {
+                'detail': '"%s" sudah terdaftar.' % validated_data['email']
+            }
+            raise serializers.ValidationError(detail=details)
+        else:
+            user = User(**validated_data)
+            user.username = validated_data['email']
+            user.set_password(validated_data['password'])
+            user.save()
 
-        return user
+            # Save Customer data
+            Customer.objects.update_or_create(related_user=user)
+            return user

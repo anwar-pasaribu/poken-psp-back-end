@@ -41,6 +41,7 @@ router.register(r'product_category_featured', views.ProductCategoryFeaturedViewS
 router.register(r'product', views.ProductViewSet, 'product')
 router.register(r'user_location', views.UserLocationViewSet, 'user_location')
 router.register(r'seller', views.SellerViewSet, 'seller')
+router.register(r'shipping_rates', views.ShippingRatesViewSet, 'shipping_rates')
 router.register(r'customer', views.CustomerViewSet, 'customer')
 router.register(r'customer_collection', views.CollectedProductViewSet, 'customer_collection')
 router.register(r'customer_subscription', views.SubscribedViewSet, 'customer_subscription')

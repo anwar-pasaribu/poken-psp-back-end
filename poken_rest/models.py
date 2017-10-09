@@ -235,10 +235,15 @@ class Courier(models.Model):
 
 
 class Location(models.Model):
-    district = models.CharField(max_length=100, help_text="kecamantan/kabupaten")
-    city = models.CharField(max_length=100, help_text='nama kota')
+    subdistrict = models.CharField(max_length=100, default='', help_text="kelurahan")
+    district = models.CharField(max_length=100, help_text="kecamantan")
+    city = models.CharField(max_length=100, help_text='nama kabupaten/kota')
+    province = models.CharField(max_length=50, default='', help_text="provinsi")
     zip = models.CharField(max_length=6, help_text='kode pos')
+    regional = models.PositiveSmallIntegerField(help_text='no. regional', blank=True, default=0)
     state = models.CharField(max_length=50, help_text='negara')
+
+    # 'regional','provinsi','kota','kecamatan','kelurahan','kodepos_lama','kodepos_baru','Mapping_Wilker'
 
     def __unicode__(self):
         return '{0}, {1}'.format(
@@ -269,6 +274,9 @@ class Shipping(models.Model):
     def __unicode__(self):
         return "%s - %s" % (self.name, self.fee)
 
+    class Meta(object):
+        ordering = ('id', )
+
 
 class OrderDetails(models.Model):
     # non unique id order id
@@ -294,7 +302,7 @@ class OrderDetails(models.Model):
     )
 
     # Moved from Ordered Product
-    order_status = models.SmallIntegerField(default=Order.BOOKED)
+    order_status = models.SmallIntegerField(default=Order.INITIALIZE)
 
     # Shipping tracking id
     shipping_tracking_id = models.CharField("Nomor Resi", max_length=50, default="", blank=True)
@@ -355,6 +363,7 @@ class ShoppingCart(models.Model):
 
     shipping = models.ForeignKey('Shipping', blank=True, null=True)
     shipping_fee = models.PositiveIntegerField(default=0, blank=True)
+    shipping_service = models.TextField(default='', blank=True)
 
     extra_note = models.TextField(blank=True)
 
