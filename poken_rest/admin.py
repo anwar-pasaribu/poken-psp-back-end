@@ -71,7 +71,7 @@ class SellerAdmin(admin.ModelAdmin):
             return 'Data User bermasalah'
 
     def address(self, obj):
-        if obj.location.zip and obj.location.city:
+        if obj.location.zip and obj.location.city and len(obj.location.zip) >= 5:
             return '%s %s' % (obj.location.city, obj.location.zip)
         else:
             return 'ALAMAT TIDAK LENGKAP'
