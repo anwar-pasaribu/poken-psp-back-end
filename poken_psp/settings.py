@@ -27,9 +27,9 @@ SECRET_KEY = 'u_51ivrtk65s0$b56n6)zrg8vyjw#7dsp-a65w48vsg*)_*axy'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = properties.IS_DEBUG
 
-ALLOWED_HOSTS = ['192.168.28.2', '192.168.1.101', '192.168.1.100',
+ALLOWED_HOSTS = ['192.168.28.2', '192.168.1.105', '192.168.1.100',
                  'localhost', '127.0.0.1', '192.168.43.152', '172.20.10.4',
-                 '139.59.245.162', '192.168.1.109', '192.168.1.114', '192.168.28.2']
+                 '139.59.245.162', '192.168.1.100', '192.168.1.114', '192.168.28.2']
 
 
 # Application definition

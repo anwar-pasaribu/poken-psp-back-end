@@ -44,18 +44,20 @@ class FeaturedItemAdmin(admin.ModelAdmin):
 
     def related_products(self, obj):
         if obj.related_products:
-            return ''.join( '%d, ' % product.id for product in obj.related_products.all() ).rsplit(',', 1)[0]
+            return ''.join('%d, ' % product.id for product in obj.related_products.all()).rsplit(',', 1)[0]
         else:
             return 'Tidak ada data'
+
 
 class ProductCategoryFeaturedAdmin(admin.ModelAdmin):
     list_display = ('id', 'product_category', 'related_products')
 
     def related_products(self, obj):
         if obj.products:
-            return ''.join( '%d, ' % product.id for product in obj.products.all() ).rsplit(',', 1)[0]
+            return ''.join('%d, ' % product.id for product in obj.products.all()).rsplit(',', 1)[0]
         else:
             return 'Tidak ada data'
+
 
 class UserLocationAdmin(admin.ModelAdmin):
     list_display = ('id', 'address', 'city', 'district', 'zip', 'state')
@@ -75,7 +77,6 @@ class SellerAdmin(admin.ModelAdmin):
             return '%s %s' % (obj.location.city, obj.location.zip)
         else:
             return 'ALAMAT TIDAK LENGKAP'
-
 
 
 class CustomerAdmin(admin.ModelAdmin):

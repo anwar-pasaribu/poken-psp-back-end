@@ -362,7 +362,10 @@ class InsertProductImageSerializer(serializers.ModelSerializer):
 class AddressBookLocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Location
-        fields = ('city', 'district', 'subdistrict')
+        fields = ('subdistrict', 'district', 'city', 'zip', )
+        extra_kwargs = {
+            'zip': {'read_only': True},
+        }
 
 
 class AddressBookSerializer(serializers.ModelSerializer):
