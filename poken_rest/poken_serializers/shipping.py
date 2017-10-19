@@ -42,6 +42,7 @@ class ShippingRatesSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             data = request.query_params
             product_id = data.get('product_id', None)
+            product_quantity = data.get('product_quantity', 1)
             address_book_id = data.get('address_book_id', None)
 
             if product_id and address_book_id:
@@ -51,13 +52,12 @@ class ShippingRatesSerializer(serializers.ModelSerializer):
                 if product and address_book:
                     wsdl_path = os.path.join(settings.STATIC_ROOT, "poken_rest/PosWebServices-20161201.wsdl.xml")
 
-                    print ("Product and address book available.")
                     product_seller = product.seller
-                    product_weight = product.weight
-
+                    product_weight = product.weight * int(product_quantity)
                     seller_zip_code = product_seller.location.zip
-
                     cust_zip_code = address_book.location.zip
+
+                    print("Product weight: %d " % product_weight)
 
                     client = zeep.Client(wsdl=wsdl_path)
 

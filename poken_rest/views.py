@@ -294,10 +294,11 @@ class CustomerViewSet(viewsets.ModelViewSet):
         # {pk} could be a user Token on Customer id
         pk_data = self.kwargs.get('pk')
 
+        # TODO Handle on unauth access
+
         try:
             int_pk = int(pk_data)
             cust = Customer.objects.filter(id=int_pk)
-            print("INT PK FOUND: %d, cust: %s" % (int_pk, cust))
             return get_object_or_404(queryset=cust)
 
         except ValueError as value_error_ex:
@@ -316,11 +317,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
         token_data = query_data.get('token_key')
         user_token = Token.objects.filter(key__exact=token_data).first()
 
-        print("Query data: %s" % query_data)
-
         if user_token is not None:
-            print("User token %s" % user_token)
-            print("User token-user %s" % user_token.user)
 
             selected_cust = Customer.objects.filter(
                 related_user=user_token.user

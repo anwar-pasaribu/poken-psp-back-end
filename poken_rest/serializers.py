@@ -6,6 +6,8 @@ from django.contrib.auth import get_user_model  # If used custom user model
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
 from rest_framework import serializers
+from rest_framework.response import Response
+from rest_framework import viewsets, mixins, status
 
 from poken_rest.domain import Order
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, ProductCategory, \
@@ -153,23 +155,52 @@ class CustomersSerializer(serializers.ModelSerializer):
     related_user = UserSerializer(many=False, read_only=False)
     location = UserLocationSerializer(many=False, read_only=False, allow_null=True)
 
+    # Change password
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+
     class Meta:
         model = Customer
-        fields = ('id', 'related_user', 'phone_number', 'location')
+        fields = ('id', 'related_user', 'phone_number', 'location', 'current_password', 'new_password')
 
     def create(self, validated_data):
         user_data = validated_data.pop('related_user')  # Add Django User data
         address_data = validated_data.pop('location')
         user = get_user_model().objects.create_user(**user_data)
 
-        print("User data %s: " % user_data)
-        print("Django User created %s: " % user)
-        print("Location data %s: " % address_data)
-
         location_data = UserLocation.objects.create(**address_data)
         customer = Customer.objects.create(related_user=user, location=location_data, **validated_data)
 
         return customer
+
+    def update(self, instance, validated_data):
+
+        current_user = instance.related_user
+
+        if validated_data.has_key('current_password'):
+            if not current_user.check_password(validated_data.get('current_password')):
+                details = { 'detail': 'Password lama salah.' }
+                raise serializers.ValidationError(detail=details)
+            else:
+                # Update User password
+                instance.related_user.set_password(validated_data.get('new_password'))
+
+        # 'first_name', 'last_name',
+        if validated_data.has_key('related_user'):
+            related_user_data = dict(validated_data.pop('related_user'))
+            instance.related_user.first_name = related_user_data['first_name']
+            instance.related_user.last_name = related_user_data['last_name']
+            instance.related_user.email = related_user_data['email']
+
+        for key in validated_data.keys():
+            setattr(instance, key, validated_data.get(key))
+
+        # Save User and Customer data
+        instance.related_user.save()
+        instance.save()
+
+        return instance
+
 
 
 class SellerSerializer(serializers.ModelSerializer):
