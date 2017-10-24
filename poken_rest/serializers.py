@@ -53,12 +53,22 @@ class ProductBrandSerializer(serializers.ModelSerializer):
         fields = ('name', 'logo')
 
 
+class ProductSellerLocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserLocation
+        fields = ('city', )
+
+
 class ProductSellerSerializer(serializers.ModelSerializer):
-    location = serializers.SlugRelatedField(many=False, read_only=True, slug_field='city')
+    location = ProductSellerLocationSerializer(many=False, read_only=True)
 
     store_avatar = serializers.SerializerMethodField()  # Get get_seller_avatars method
 
     is_subscribed = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Seller
+        fields = ('id', 'store_avatar', 'store_name', 'tag_line', 'phone_number', 'location', 'is_subscribed')
 
     def get_store_avatar(self, obj):
         if obj.user_image:
@@ -78,10 +88,6 @@ class ProductSellerSerializer(serializers.ModelSerializer):
                 return subscribed.is_get_notif
         else:
             return False
-
-    class Meta:
-        model = Seller
-        fields = ('id', 'store_avatar', 'store_name', 'tag_line', 'phone_number', 'location', 'is_subscribed')
 
 
 class ProductImagesSerializer(serializers.ModelSerializer):
@@ -207,9 +213,21 @@ class SellerSerializer(serializers.ModelSerializer):
     location = UserLocationSerializer(many=False, read_only=True)
     related_user = UserSerializer(many=False, read_only=True)
 
+    store_avatar = serializers.SerializerMethodField()  # Get get_seller_avatars method
+
     class Meta:
         model = Seller
-        fields = ('store_name', 'related_user', 'bio', 'tag_line', 'phone_number', 'location')
+        fields = ('id', 'store_name', 'store_avatar', 'related_user', 'bio', 'tag_line', 'phone_number', 'location')
+
+    def get_store_avatar(self, obj):
+        if obj.user_image:
+            request = self.context.get('request')  # View set should pass 'request' object
+            if obj.user_image.profile_pic is None:
+                return ""
+            image_url = obj.user_image.profile_pic.url
+            return request.build_absolute_uri(image_url)
+        else:
+            return ""
 
     def create(self, validated_data):
         address_data = validated_data.pop('location')

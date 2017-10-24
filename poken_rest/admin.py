@@ -66,6 +66,8 @@ class UserLocationAdmin(admin.ModelAdmin):
 class SellerAdmin(admin.ModelAdmin):
     list_display = ('id', 'store_name', 'user_info', 'bio', 'tag_line', 'phone_number', 'address')
 
+    search_fields = ('store_name', 'tag_line')
+
     def user_info(self, obj):
         if obj.related_user:
             return 'User: %s (%s)' % (obj.related_user.first_name, obj.related_user.email)
@@ -90,7 +92,6 @@ class CustomerAdmin(admin.ModelAdmin):
 
     def thumbnail(self, obj):
         if obj.user_image:
-            print "URL %s: " % dir(obj.user_image.profile_pic)
             return '<img src="%s" style="height: 50px; width: auto">' % (obj.user_image.profile_pic.url)
         else:
             return "no image"
@@ -153,7 +154,7 @@ class AddressBookAdmin(admin.ModelAdmin):
 
     def location_address(self, obj):
         if obj.location:
-            return '%s, %s' % (obj.location.district, obj.location.city)
+            return '%s, %s %s' % (obj.location.district, obj.location.city, obj.location.zip)
         else:
             return 'Lokasi kosong'
 

@@ -123,6 +123,9 @@ class Seller(models.Model):
                                    help_text='nomor telepon pemilik toko')
     owner_address = models.TextField(blank=False, default='', help_text='alamat pemilik toko')
 
+    class Meta(object):
+        ordering = ('store_name', )
+
     def __unicode__(self):
         return '%s (%s)' % (self.store_name, self.related_user.email)
 

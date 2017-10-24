@@ -130,7 +130,6 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         data = self.request.query_params
-        user = self.request.user
         seller_id = data.get('seller_id', None)
         action_id = data.get('action_id', None)
 
@@ -329,10 +328,28 @@ class CustomerViewSet(viewsets.ModelViewSet):
 
 
 class SellerViewSet(viewsets.ModelViewSet):
-    queryset = Seller.objects.all()
     serializer_class = SellerSerializer
 
-    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly, )
+
+    def get_queryset(self):
+        data = self.request.query_params
+        # URL PARAMS
+        store_name = data.get('store_name', None)
+
+        if store_name:
+            print ("Search by store name: " + store_name)
+            return Seller.objects.filter(
+                Q(store_name__icontains=str(store_name)) )
+
+        return Seller.objects.all()
+
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(SellerViewSet, self).get_serializer_context()
+        return context
 
 
 class ShoppingCartViewSet(viewsets.ModelViewSet):

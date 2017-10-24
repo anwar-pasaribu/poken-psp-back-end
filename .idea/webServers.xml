@@ -3,9 +3,9 @@
   <component name="WebServers">
     <option name="servers">
       <webServer id="f2c2bae8-4523-4792-8ecf-266405438219" name="Poken Server" url="http://139.59.245.162">
-        <fileTransfer host="139.59.245.162" port="21" accessType="FTPS">
+        <fileTransfer host="139.59.245.162" port="21" rootFolder="/poken-psp-back-end" accessType="FTPS">
           <advancedOptions>
-            <advancedOptions dataProtectionLevel="Private" />
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" />
           </advancedOptions>
           <option name="port" value="21" />
         </fileTransfer>
