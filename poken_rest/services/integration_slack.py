@@ -34,6 +34,8 @@ def send_slack_order_status_changes_notif(order_data):
     url_order = request.build_absolute_uri(
         'admin/poken_rest/orderdetails/%d/change/' % order_details.id)
 
+    shopping_carts = order_details.orderedproduct_set.first().shopping_carts.all()
+
     order_ref = order_details.order_id
     order_status = int(order_details.order_status)
     customer = order_details.customer
@@ -44,21 +46,60 @@ def send_slack_order_status_changes_notif(order_data):
 
     print ("Order status: %d" % order_status)
 
+    str_template_product_info = '''{
+                        "title": "%s",
+                        "title_link": "%s",
+                        "text": "%s\nStok barang: %d",
+                        "color": "%s"
+                    }'''
+
+    str_ordered_items = ""
+    str_color_code = "#ED1C24"
+    for sc in shopping_carts:
+
+        # Replace poken_rest/order_details/183/
+        url_product_detail = request.build_absolute_uri('admin/poken_rest/product/%d/change/' % sc.product.id)
+
+        if order_status == Order.RECEIVED:
+            url_product_detail = url_product_detail.replace(('poken_rest/order_details/%s/' % order_details.id), '')
+            str_color_code = "#1BA260"  # GREEN GOOGLE CHROME
+        elif order_status == Order.REFUND:
+            url_product_detail = url_product_detail.replace(('poken_rest/order_details/%s/' % order_details.id), '')
+            str_color_code = "#F4AF39"  #ORANGE GOOGLE CHROME
+        else:
+            url_product_detail = url_product_detail.replace('poken_rest/ordered_product/', '')
+            str_color_code = "#ED1C24"  # RED GOOGLE CHROME
+
+        str_ordered_items += str_template_product_info % (
+            html.escape(sc.product.name.replace('"', '\\"')),
+            url_product_detail,
+            html.escape(sc.product.description.replace('"', '\\"'))[:100],  # First hundred
+            sc.product.stock,
+            str_color_code
+        ) + ","
+
+    str_ordered_items = str_ordered_items.rsplit(',', 1)[0]
+
     if order_status == Order.RECEIVED:
         slack_url = URL_SLACK_POKEN_ORDER_RECEIVED
         url_order = url_order.replace(('poken_rest/order_details/%s/' % order_details.id), '')
-        slack_msg = """{ "text": "Pesanan Barang order ref. <%s|%s> oleh %s telah %s." }""" \
-                    % (url_order, order_ref, cust_name, Order.RECEIVED_TEXT)
+        slack_msg = """{ 
+            "text": "Pesanan Barang order ref. <%s|%s> oleh %s telah %s.",
+            "attachments": [%s]
+            }""" % (url_order, order_ref, cust_name, Order.RECEIVED_TEXT, str_ordered_items)
     elif order_status == Order.REFUND:
         slack_url = URL_SLACK_POKEN_ORDER_REFUND
         url_order = url_order.replace(('poken_rest/order_details/%s/' % order_details.id), '')
-        slack_msg = """{ "text": "Pesanan Barang order ref. <%s|%s> oleh %s telah %s." }""" \
-                    % (url_order, order_ref, cust_name, Order.REFUND_TEXT)
+        slack_msg = """{ 
+            "text": "Pesanan Barang order ref. <%s|%s> oleh %s telah %s. Segera proses.",
+            "attachments": [%s]
+            }""" % (url_order, order_ref, cust_name, Order.REFUND_TEXT, str_ordered_items)
+        print(slack_msg)
     elif order_status == Order.EXPIRE:
         slack_url = URL_SLACK_POKEN_ORDER_EXPIRE
         url_order = url_order.replace('poken_rest/ordered_product/', '')
-        slack_msg = """{ "text": "Pesanan Barang order ref. <%s|%s> oleh %s telah %s." }""" \
-                    % (url_order, order_ref, cust_name, Order.EXPIRE_TEXT)
+        slack_msg = """{ "text": "Pesanan Barang order ref. <%s|%s> oleh %s telah %s.", "attachments": [%s] }""" \
+                    % (url_order, order_ref, cust_name, Order.EXPIRE_TEXT, str_ordered_items)
 
     payload = slack_msg
 
