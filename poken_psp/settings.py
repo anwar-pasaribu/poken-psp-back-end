@@ -98,23 +98,23 @@ WSGI_APPLICATION = 'poken_psp.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
-}
-
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': properties.DATABASE_DB_NAME,
-#         'USER': properties.DATABASE_USERNAME,
-#         'PASSWORD': properties.DATABASE_PASSWORD,
-#         'HOST': properties.DATABASE_HOST,
-#         'PORT': properties.DATABASE_PORT,
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
 #     }
 # }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': properties.DATABASE_DB_NAME,
+        'USER': properties.DATABASE_USERNAME,
+        'PASSWORD': properties.DATABASE_PASSWORD,
+        'HOST': properties.DATABASE_HOST,
+        'PORT': properties.DATABASE_PORT,
+    }
+}
 
 
 # Password validation

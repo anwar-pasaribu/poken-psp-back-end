@@ -569,7 +569,7 @@ class OrderedProductSerializer(serializers.ModelSerializer):
             for sc in obj.shopping_carts.all():
                 if sc.product.is_discount:
                     sc.product.price = (sc.product.price - ((sc.product.price * sc.product.discount_amount) / 100))
-                total_cost += sc.product.price * sc.quantity + sc.shipping.fee
+                total_cost += sc.product.price * sc.quantity + sc.shipping_fee
 
             return total_cost
 
