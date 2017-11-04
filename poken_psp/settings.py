@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 
 import os
 
+from django.conf.locale.en import formats as en_formats
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 from poken_psp import properties
 
@@ -149,6 +151,8 @@ USE_L10N = True
 
 USE_TZ = True
 
+# Ref: https://mounirmesselmeni.github.io/2014/11/06/date-format-in-django-admin/
+en_formats.DATETIME_FORMAT = "d b Y H:i:s"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
