@@ -73,7 +73,7 @@ class ShippingRatesSerializer(serializers.ModelSerializer):
                     print("Tariff data: %s" % str(tariff_data))
                     for tariff_item in tariff_data:
                         # Create shipping item then convert to dict
-                        item = Shipping(fee=float(eval(tariff_item['totalFee'])), name=tariff_item['serviceName'])
+                        item = Shipping(fee=int(eval(tariff_item['totalFee'])), name=tariff_item['serviceName'])
                         tariff_list.append(model_to_dict(item, fields=[field.name for field in item._meta.fields]))
 
                     return tariff_list
