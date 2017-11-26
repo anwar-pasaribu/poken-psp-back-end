@@ -7,7 +7,6 @@ import datetime
 import pytz
 from django.contrib.auth.models import User, Group
 from django.db.models import Q
-from django.http.response import JsonResponse
 from rest_framework import viewsets, permissions, status
 # GET USER DATA BY TOKEN
 from rest_framework.authtoken.models import Token
@@ -18,18 +17,19 @@ from poken_rest.domain import Order
 from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBrand, HomeItem, ShoppingCart, \
     AddressBook, OrderedProduct, CollectedProduct, Subscribed, OrderDetails, ProductImage, FeaturedItem, \
     ProductCategory, Shipping
+from poken_rest.poken_serializers.cart import ShoppingCartSerializer
 from poken_rest.poken_serializers.category import ProductCategoryFeaturedSerializer, ProductCategorySerializer
 from poken_rest.poken_serializers.shipping import ShippingRatesSerializer
 from poken_rest.poken_serializers.user import UserRegisterSerializer as user_UserSerializer
 from poken_rest.serializers import UserSerializer, GroupSerializer, ProductSerializer, UserLocationSerializer, \
     CustomersSerializer, SellerSerializer, ProductBrandSerializer, InsertProductSerializer, HomeContentSerializer, \
-    ShoppingCartSerializer, InsertShoppingCartSerializer, AddressBookSerializer, OrderedProductSerializer, \
+    InsertShoppingCartSerializer, AddressBookSerializer, OrderedProductSerializer, \
     CollectedProductSerializer, SubscribedSerializer, InsertOrderedProductSerializer, InsertOrderDetailsSerializer, \
     FeaturedItemDetailedSerializer, InsertCustomerSubscribedSerializer, InsertProductImageSerializer, \
     OrderDetailsSerializer
 # Create your views here.
 from poken_rest.services import integration_slack
-from poken_rest.utils import constants
+from poken_rest.utils import constants, price_helper
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -156,8 +156,15 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
         elif product_name and category_name is not None:
             print("Search category name: \"%s\" and product name: \"%s\"" % (category_name, product_name))
-            return Product.objects.filter(
-                Q(name__icontains=str(product_name)) | Q(category__name__icontains=str(category_name)))
+            # First attempt search by product name OR category name
+            product_search_result = Product.objects.filter(
+                Q(name__icontains=str(product_name)) | Q(category__name__icontains=str(category_name))
+                | Q(seller__store_name__icontains=str(product_name))
+            )
+
+            print("Search result size: %d" % len(product_search_result))
+
+            return product_search_result
 
         return Product.objects.filter(is_posted=True)
 
@@ -354,7 +361,7 @@ class SellerViewSet(viewsets.ModelViewSet):
 
 class ShoppingCartViewSet(viewsets.ModelViewSet):
     serializer_class = ShoppingCartSerializer
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (permissions.IsAuthenticated, )
 
     def get_queryset(self):
         """
@@ -363,7 +370,7 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
         Exclude shopping cart which is avaibale on ordered product
         """
         user = self.request.user
-        print("Logged user: %s" % user.username)
+        print("[Shopping cart] Logged user: %s" % user.username)
         active_cust = Customer.objects.filter(
             related_user=user,
         ).first()
@@ -372,6 +379,37 @@ class ShoppingCartViewSet(viewsets.ModelViewSet):
             product__stock__gte=1,
             customer=active_cust,
             orderedproduct=None)
+
+    def partial_update(self, request, *args, **kwargs):
+        shopping_cart = self.get_object()
+
+        # Update shopping cart quantity
+        quantity_data = request.data.get('quantity')
+        if quantity_data:
+
+            updated_selected_product_fee = \
+                price_helper.get_discounted_product_fee(shopping_cart.product) * int(quantity_data)
+            updated_shopping_cart_item_fee = updated_selected_product_fee + shopping_cart.shipping_fee
+
+            shopping_cart.selected_product_fee = updated_selected_product_fee
+            shopping_cart.shopping_cart_item_fee = updated_shopping_cart_item_fee
+
+
+        serializer = ShoppingCartSerializer(shopping_cart,
+                                            data=request.data,
+                                            partial=True,
+                                            context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data)
+
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(ShoppingCartViewSet, self).get_serializer_context()
+        return context
 
 
 class OrderDetailsViewSet(viewsets.ModelViewSet):

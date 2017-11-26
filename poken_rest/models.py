@@ -364,14 +364,22 @@ class ShoppingCart(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     quantity = models.PositiveSmallIntegerField(default=1)
 
+    # Shopping fee (product * quantity)
+    # PS: Product price might be change in the future
+    selected_product_fee = models.PositiveIntegerField(default=0, blank=True)
+
     shipping = models.ForeignKey('Shipping', blank=True, null=True)
     shipping_fee = models.PositiveIntegerField(default=0, blank=True)
     shipping_service = models.TextField(default='', blank=True)
 
+    # Total item cost on shopping cart
+    # ((product price * quatity) + shopping_fee)
+    shopping_cart_item_fee = models.PositiveIntegerField(default=0, blank=True)
+
     extra_note = models.TextField(blank=True)
 
     class Meta(object):
-        ordering = ('-date', )
+        ordering = ('-product__seller__id', '-date')
 
     def __unicode__(self):
         return '%s - Cust: %s, product: %s (%s items), added: %s' % (self.id, self.customer.id, self.product.id, self.quantity, self.date)
@@ -380,7 +388,10 @@ class ShoppingCart(models.Model):
 class OrderedProduct(models.Model):
     order_details = models.ForeignKey(OrderDetails, on_delete=models.CASCADE)
     shopping_carts = models.ManyToManyField(ShoppingCart)
-    status = models.SmallIntegerField(default=0)
+
+    # Fixed grand total shopping fee
+    #
+    order_grand_total_fee = models.PositiveIntegerField(default=0)
 
     class Meta(object):
         ordering = ('-id', )

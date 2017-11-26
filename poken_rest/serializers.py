@@ -15,7 +15,7 @@ from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBr
     OrderDetails, OrderedProduct, CollectedProduct, Subscribed, Location
 from poken_rest.poken_serializers.shipping import ShippingSerializer
 from poken_rest.services import integration_slack
-from poken_rest.utils import stringutils
+from poken_rest.utils import stringutils, price_helper
 from django.utils.encoding import force_text
 from django.core.serializers.json import DjangoJSONEncoder
 
@@ -71,16 +71,20 @@ class ProductSellerSerializer(serializers.ModelSerializer):
         fields = ('id', 'store_avatar', 'store_name', 'tag_line', 'phone_number', 'location', 'is_subscribed')
 
     def get_store_avatar(self, obj):
-        if obj.user_image:
+        if obj and obj.user_image:
             request = self.context.get('request')  # View set should pass 'request' object
             if obj.user_image.profile_pic is None:
                 return ""
             image_url = obj.user_image.profile_pic.url
-            return request.build_absolute_uri(image_url)
+            if request:
+                return request.build_absolute_uri(image_url)
+            else:
+                return ""
         else:
             return ""
 
     def get_is_subscribed(self, obj):
+        # Logged in user
         user = self.context.get('request').user
         if user.id is not None:
             subscribed = obj.subscribed_set.filter(customer__related_user=user).first()
@@ -295,8 +299,8 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
         shipping_fee_data = validated_data.pop('shipping_fee')
         shipping_service_data = validated_data.pop('shipping_service')
 
+        # QUERY DATABASE
         cust = Customer.objects.filter(related_user=request.user).first()
-
         # Looking for Shopping Cart which is not available on OrderedProduct
         prev_cart_item = ShoppingCart.objects.filter(
             customer=cust,
@@ -304,7 +308,12 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
             orderedproduct=None
         ).first()
 
-        # Incement quantity
+        # Calculate total amount
+        # PATCH did this too
+        selected_product_fee = product_data.price * int(quantity_data)
+        shopping_cart_item_fee = selected_product_fee + int(shipping_fee_data)
+
+        # Return shopping cart when equals item created before
         if prev_cart_item is not None:
             if prev_cart_item.shipping == shipping_data:
                 return prev_cart_item
@@ -314,8 +323,10 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
             product=product_data,
             shipping=shipping_data,
             quantity=quantity_data,
+            selected_product_fee=selected_product_fee,
             shipping_fee=shipping_fee_data,
-            shipping_service=shipping_service_data
+            shipping_service=shipping_service_data,
+            shopping_cart_item_fee=shopping_cart_item_fee
         )
 
         return new_cart
@@ -335,7 +346,7 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderedProduct
-        fields = ('id', 'order_details_id', 'shopping_carts', 'status')
+        fields = ('id', 'order_details_id', 'shopping_carts', )
 
     def create(self, validated_data):
         request = self.context.get('request')  # InsertShoppingCartViewSet should pass 'request' object
@@ -344,22 +355,23 @@ class InsertOrderedProductSerializer(serializers.ModelSerializer):
 
         cust = Customer.objects.filter(related_user=request.user).first()
 
+        grand_total = 0
         for sc in shopping_carts:
+            grand_total += sc.shopping_cart_item_fee
             print('Shopping cart item id: %s' % sc.id)
 
         print('Current customer: %s' % cust)
         print('order_details data: %s' % order_details)
         print('shopping_carts data: %s' % shopping_carts)
 
-        # Substract product stock by one
+        # Substract product stock by Shopping Cart quantity
         for shopping_item in shopping_carts:
             shopping_item.product.stock = shopping_item.product.stock - shopping_item.quantity
             shopping_item.product.save()
 
         new_ordered_product = OrderedProduct.objects.create(
-            order_details=order_details,
-            status=Order.BOOKED)
-
+            order_details=order_details)
+        new_ordered_product.order_grand_total_fee = grand_total
         new_ordered_product.shopping_carts = shopping_carts
         new_ordered_product.save()
 
@@ -560,16 +572,14 @@ class OrderedProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderedProduct
-        fields = ('id', 'order_details', 'shopping_carts', 'status', 'total_shopping')
+        fields = ('id', 'order_details', 'shopping_carts', 'total_shopping')
 
     # Calculate all shooping costs
     def get_total_shopping(self, obj):
         if obj.shopping_carts:
             total_cost = 0
             for sc in obj.shopping_carts.all():
-                if sc.product.is_discount:
-                    sc.product.price = (sc.product.price - ((sc.product.price * sc.product.discount_amount) / 100))
-                total_cost += sc.product.price * sc.quantity + sc.shipping_fee
+                total_cost += price_helper.get_shopping_cart_item_fee(sc)
 
             return total_cost
 

@@ -7,10 +7,13 @@ import threading
 import requests
 from django.utils import html
 from django.utils.formats import localize
+from django.utils import timezone
+import pytz
 
 from poken_psp import properties
 from poken_rest.domain import Order
 
+URL_SLACK_TEST = "https://hooks.slack.com/services/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"
 URL_SLACK_POKEN_SALES = "https://hooks.slack.com/services/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"
 URL_SLACK_POKEN_ORDER_EXPIRE = "https://hooks.slack.com/services/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"
 URL_SLACK_POKEN_ORDER_RECEIVED = "https://hooks.slack.com/services/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"
@@ -108,10 +111,10 @@ def send_slack_order_status_changes_notif(order_data):
         'cache-control': "no-cache"
     }
 
-    print("Slack url: " + slack_url)
-    print("Payload: " + payload)
+    if properties.IS_TEST_SLACK:
+        slack_url = URL_SLACK_TEST
 
-    response = requests.request("POST", slack_url, data=payload, headers=headers)
+    response = requests.request("POST", slack_url, data=payload.encode('utf-8'), headers=headers)
 
     print ("Slack webhook order-expire response: " + str(response.text))
 
@@ -126,7 +129,8 @@ def send_slack_new_order_notif(new_ordered_product):
     url_order = url_order.replace(('poken_rest/order_details/%s/' % ordered_product.order_details.id), '')
 
     order_id_link = '<%s|%s>' % (url_order, ordered_product.order_details.order_id)
-    order_date = localize(ordered_product.order_details.date)
+    # Custom time zone 'Asia/Jakarta'
+    order_date = timezone.localtime(ordered_product.order_details.date, pytz.timezone('Asia/Jakarta')).strftime("%A, %d %B %Y %H:%M:%S")
     customer = ordered_product.order_details.customer
     address_book = ordered_product.order_details.address_book
     cust_name = html.escape(str(customer.related_user.get_full_name()))
@@ -249,7 +253,14 @@ def send_slack_new_order_notif(new_ordered_product):
         'cache-control': "no-cache"
     }
 
-    response = requests.request("POST", URL_SLACK_POKEN_SALES, data=payload, headers=headers)
+    slack_url = URL_SLACK_POKEN_SALES
+    if properties.IS_TEST_SLACK:
+        slack_url = URL_SLACK_TEST
+
+    response = requests.request("POST", slack_url, data=payload.encode('utf-8'), headers=headers)
+
+    print ("Slack webhook new order response: " + str(response.text))
+
     # Send simple version
     if response.text != 'ok':
         payload2 = """
@@ -288,7 +299,7 @@ def send_slack_new_order_notif(new_ordered_product):
             shipping_receiver_phone, shipping_receiver_phone,
             shipping_receiver_address,
         )
-        requests.request("POST", URL_SLACK_POKEN_SALES, data=payload2, headers=headers)
+        requests.request("POST", slack_url, data=payload2.encode('utf-8'), headers=headers)
 
 
 # NEW ORDER SLACK MESSAGE.

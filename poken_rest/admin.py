@@ -6,6 +6,7 @@ import datetime
 import pytz
 from django.contrib import admin
 
+from poken_psp import properties
 from poken_rest.domain import Order
 from poken_rest.models import Seller, Customer, ProductBrand, ProductSize, ProductCategory, ProductImage, Courier, \
     UserLocation, Location, AddressBook, Shipping, OrderDetails, Subscribed, Product, ShoppingCart, OrderedProduct, \
@@ -168,23 +169,56 @@ class OrderDetailsAdmin(admin.ModelAdmin):
                     'order_id',
                     'cust_name',
                     'shipping_address',
+                    'orders',
                     'date',
                     'shipping_tracking_id',
                     'payment_expiration',
-                    'order_expiration',
                     'order_status_text')
+
+    exclude = ('order_expiration_date', )
+
+    search_fields = ('order_id', 'customer__related_user__first_name')
+
 
     def cust_name(self, obj):
         if obj.customer:
-            return '%s' % obj.customer.related_user.username
+            return '%s' % obj.customer.related_user.get_full_name()
         else:
             return 'Customer kosong'
+    cust_name.short_description = 'Akun Pemesan'
 
     def shipping_address(self, obj):
         if obj.address_book:
-            return '%s' % (obj.address_book.name)
+            return '%s, <a href="tel:%s">%s</a>, %s ' \
+                   % (obj.address_book.name, obj.address_book.phone, obj.address_book.phone, obj.address_book.address)
         else:
             return 'NULL'
+    shipping_address.short_description = 'Penerima Pesanan'
+    shipping_address.allow_tags = True
+
+    def orders(self, obj):
+
+        if obj.orderedproduct_set.first():
+            product_count = 1
+            str_orders = ""
+            for sc in obj.orderedproduct_set.first().shopping_carts.all():
+                url = '%s/admin/poken_rest/product/%s/change/' % (properties.DJANGO_HOST, sc.product.id)
+                str_orders += '%d - <a target="_blank" href="%s">%s</a> (%d)<hr /><br />' \
+                              % (product_count, url, sc.product.name[:50], sc.quantity)
+                product_count+=1
+
+            return '%s' % str_orders
+        else:
+            return '-'
+    orders.short_description = 'Produk Pesanan'
+    orders.allow_tags = True
+
+    def shopping_cart_data(self, obj):
+        if obj.shopping_carts:
+            return ''.join('Produk ID: %s (banyak: %s), ' %
+                           (sc.product.id, sc.quantity) for sc in obj.shopping_carts.all()).rsplit(',', 1)[0]
+        else:
+            return 'Data produk troli kosong'
 
     def payment_expiration(self, obj):
         if obj.payment_expiration_date:
@@ -197,18 +231,13 @@ class OrderDetailsAdmin(admin.ModelAdmin):
         else:
             return 'NOT SET'
 
-    def order_expiration(self, obj):
-        if obj.order_expiration_date:
-            now = datetime.datetime.now(pytz.utc)
-            return obj.order_expiration_date - now
-        else:
-            return 'NOT SET'
-
     def order_status_text(self, obj):
         status = obj.order_status
-        if status == Order.SOLD_OUT:
+        if status == Order.INITIALIZE:
+            return Order.INITIALIZE_TEXT
+        elif status == Order.SOLD_OUT:
             return Order.SOLD_OUT_TEXT
-        if status == Order.BOOKED:
+        elif status == Order.BOOKED:
             return Order.BOOKED_TEXT
         elif status == Order.PAID:
             return Order.PAID_TEXT
@@ -268,7 +297,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 class ShoppingCartAdmin(admin.ModelAdmin):
     list_display = ('id', 'customer_data', 'product_data', 'date', 'quantity',
-                    'shipping_method', 'shipping_fee', 'extra_note')
+                    'shipping_method', 'selected_product_fee', 'shipping_fee', 'shopping_cart_item_fee', 'extra_note')
 
     def shipping_method(self, obj):
         if obj.shipping:
@@ -290,7 +319,7 @@ class ShoppingCartAdmin(admin.ModelAdmin):
 
 
 class OrderedProductAdmin(admin.ModelAdmin):
-    list_display = ('id', 'order_details_data', 'shopping_cart_data', 'status')
+    list_display = ('id', 'order_details_data', 'shopping_cart_data', )
 
     def order_details_data(self, obj):
         if obj.order_details:
