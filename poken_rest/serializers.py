@@ -310,7 +310,7 @@ class InsertShoppingCartSerializer(serializers.ModelSerializer):
 
         # Calculate total amount
         # PATCH did this too
-        selected_product_fee = product_data.price * int(quantity_data)
+        selected_product_fee = price_helper.get_discounted_product_fee(product_data) * int(quantity_data)
         shopping_cart_item_fee = selected_product_fee + int(shipping_fee_data)
 
         # Return shopping cart when equals item created before
