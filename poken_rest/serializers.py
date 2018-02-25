@@ -151,8 +151,11 @@ class InsertProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ('name', 'description', 'seller', 'is_new', 'date_created', 'brand', 'category',
+        fields = ('id', 'name', 'description', 'seller', 'is_new', 'date_created', 'brand', 'category',
                   'images', 'size', 'stock', 'price', 'weight')
+        extra_kwargs = {
+            'id': {'read_only': True},
+        }
 
 
 class UserLocationSerializer(serializers.ModelSerializer):

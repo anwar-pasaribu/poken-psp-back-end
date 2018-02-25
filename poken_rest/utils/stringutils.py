@@ -38,3 +38,6 @@ if __name__ == '__main__':
         print "Expire %s " % diff.total_seconds()
     else:
         print "Diff %s " % diff.total_seconds()
+
+    a = ['A', 'A', 'X', 'B', 'C']
+    print("Data: %s", a)

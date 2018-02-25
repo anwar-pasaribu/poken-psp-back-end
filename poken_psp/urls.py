@@ -23,6 +23,8 @@ from poken_rest import views
 
 from rest_framework.authtoken import views as token_views
 
+from poken_rest.views import StoreSummaryViewSet
+
 router = routers.DefaultRouter()
 router.register(r'home', views.HomeContentViewSet, 'home')
 router.register(r'featured', views.FeaturedItemDetailViewSet, 'featured')
@@ -40,7 +42,9 @@ router.register(r'product_category', views.ProductCategoryViewSet, 'product_cate
 router.register(r'product_category_featured', views.ProductCategoryFeaturedViewSet, 'product_category_featured')
 router.register(r'product', views.ProductViewSet, 'product')
 router.register(r'user_location', views.UserLocationViewSet, 'user_location')
+router.register(r'user_bank', views.UserBankViewSet, 'user_bank')
 router.register(r'seller', views.SellerViewSet, 'seller')
+router.register(r'store_summary', views.StoreSummaryViewSet, 'store_summary')
 router.register(r'shipping_rates', views.ShippingRatesViewSet, 'shipping_rates')
 router.register(r'customer', views.CustomerViewSet, 'customer')
 router.register(r'customer_collection', views.CollectedProductViewSet, 'customer_collection')
@@ -55,10 +59,12 @@ router.register(r'groups', views.GroupViewSet, 'groups')
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^poken_rest/', include(router.urls)),
+    # url(r'^poken_rest/store_summary', StoreSummaryViewSet.as_view()),
     url(r'^poken_web/', include('poken_web.urls', namespace="peber_web")),
     url(r'^poken_rest/poken_rest-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
-# we are serving static and media files here at the moment - if we deploy this app to a server, we do necessarily want this
+# we are serving static and media files here at the moment - if we deploy this app to a server, we do necessarily
+# want this
 if settings.DEBUG is True:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

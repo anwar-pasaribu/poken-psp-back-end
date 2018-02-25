@@ -4,13 +4,12 @@ from poken_rest.models import ProductCategory, Product
 
 
 class ProductCategoryFeaturedSerializer(serializers.ModelSerializer):
-
     product_category = serializers.SerializerMethodField()
     products = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductCategory
-        fields = ('id', 'product_category', 'products' )
+        fields = ('id', 'product_category', 'products')
 
     def get_product_category(self, obj):
         data = {}
@@ -25,7 +24,7 @@ class ProductCategoryFeaturedSerializer(serializers.ModelSerializer):
         related_products = []
         featured_product = Product.objects.filter(category=obj)
 
-        print ("Category: %s " % str(obj) )
+        print ("Category: %s " % str(obj))
 
         if len(featured_product) < 3:
             featured_product = Product.objects.all()[:3]
@@ -45,9 +44,10 @@ class ProductCategoryFeaturedSerializer(serializers.ModelSerializer):
 
 
 class ProductCategorySerializer(serializers.ModelSerializer):
-    '''
+    """
     General serializer for Product Category
-    '''
+    """
+
     class Meta:
         model = ProductCategory
         fields = ('id', 'name',)

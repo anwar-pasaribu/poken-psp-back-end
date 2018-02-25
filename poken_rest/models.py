@@ -127,7 +127,73 @@ class Seller(models.Model):
         ordering = ('store_name', )
 
     def __unicode__(self):
-        return '%s (%s)' % (self.store_name, self.related_user.email)
+        return '%s (ID:%s)' % (self.store_name, self.id)
+
+
+# Create your models here.
+class SellerPromo(models.Model):
+    seller = models.ForeignKey('Seller', default=None, related_name='seller_promo', on_delete=models.CASCADE)
+
+    name = models.CharField(max_length=250, blank=True)
+    image = models.ImageField(upload_to=generated_featured_image_file_name, blank=False)
+    # thumbnail
+    thumbnail = models.ImageField("Gambar kecil mewakili gambar asli", blank=True)
+    expiry_date = models.DateTimeField(auto_now_add=False)
+    target_id = models.PositiveSmallIntegerField(default=0)
+
+    featured_text = models.TextField("Teks promosi", default="Teks promosi")
+
+    class Meta(object):
+        ordering = ('-id', )
+
+    def __unicode__(self):
+        return '%s (ID:%s)' % (self.name, self.id)
+
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        """
+        On save, generate a new thumbnail
+        :param force_insert:
+        :param force_update:
+        :param using:
+        :param update_fields:
+        :return:
+        """
+        # Compress actual image size
+        self.image = create_compressed_image(self.image)
+
+        # generate and set thumbnail or none
+        self.thumbnail = create_featured_image_thumbnail(self.image)
+
+        # Check if a pk has been set, meaning that we are not creating a new image, but updateing an existing one
+        # if self.pk:
+        #    force_update = True
+
+        # force update as we just changed something
+        super(SellerPromo, self).save(force_update=force_update)
+
+
+class Bank(models.Model):
+    name = models.CharField(max_length=150, blank=False, default='', help_text='Nama bank')
+    code_number = models.CharField(max_length=5, blank=False, default='', help_text='Kode bank')
+    logo = models.ImageField(upload_to=generated_bank_logo_file_name, blank=True,
+                             help_text='Logo bank, maks 515x512 pixels')
+
+    def __unicode__(self):
+        return '%s (%s)' % (self.name, self.code_number)
+
+
+class UserBank(models.Model):
+    related_user = models.ForeignKey(User, default=None, related_name='bank_owner', on_delete=models.CASCADE)
+    bank = models.ForeignKey(Bank, blank=True, default=None, related_name='bank_detail')
+    date_created = models.DateTimeField(auto_now_add=True)
+    account_number = models.CharField(max_length=50, blank=False, default='', help_text='Nomor rekening')
+    account_name = models.CharField(max_length=150, blank=False, default='', help_text='Nama pemilik rekening')
+
+    def __unicode__(self):
+        return '%s (%s)' % (self.account_number, self.account_name)
+
+    class Meta(object):
+        ordering = ('-account_name', )
 
 
 class Customer(models.Model):
@@ -150,14 +216,14 @@ class ProductBrand(models.Model):
     logo = models.ImageField(upload_to=generated_logo_file_name, blank=True)
 
     def __unicode__(self):
-        return 'Brand name: {0}'.format(self.name)
+        return 'Brand name: {0} - {1}'.format(self.id, self.name)
 
 
 class ProductSize(models.Model):
     name = models.CharField(max_length=200, help_text="merek barang")
 
     def __unicode__(self):
-        return 'Size: {0}'.format(self.name)
+        return 'Size: {0} - {1}'.format(self.id, self.name)
 
 
 class ProductCategory(models.Model):
@@ -165,10 +231,11 @@ class ProductCategory(models.Model):
     sizes = models.ManyToManyField(ProductSize, help_text='ukuran yang tersedia')
 
     def __unicode__(self):
-        return 'Category: {0}'.format(self.name)
+        return 'Category: {0} - {1}'.format(self.id, self.name)
 
     class Meta(object):
         ordering = ('name', )
+
 
 class ProductCategoryFeatured(models.Model):
     product_category = models.ForeignKey('ProductCategory')
@@ -188,6 +255,7 @@ class ProductCategoryFeatured(models.Model):
     class Meta(object):
         ordering = ('-product_category__name', )
 
+
 class UserImage(models.Model):
     profile_pic = models.ImageField(upload_to=generated_user_image_file_name, blank=True)
 
@@ -206,7 +274,7 @@ class ProductImage(models.Model):
         ordering = ('-id', )
 
     def __unicode__(self):
-        return '%s' % self.title
+        return '%s - %s' % (self.id, self.title)
 
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
         """

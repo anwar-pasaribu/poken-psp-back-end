@@ -10,7 +10,8 @@ from poken_psp import properties
 from poken_rest.domain import Order
 from poken_rest.models import Seller, Customer, ProductBrand, ProductSize, ProductCategory, ProductImage, Courier, \
     UserLocation, Location, AddressBook, Shipping, OrderDetails, Subscribed, Product, ShoppingCart, OrderedProduct, \
-    CollectedProduct, FeaturedItem, HomeProductSection, HomeItem, UserImage, ProductCategoryFeatured
+    CollectedProduct, FeaturedItem, HomeProductSection, HomeItem, UserImage, ProductCategoryFeatured, UserBank, Bank, \
+    SellerPromo
 
 
 class HomeItemAdmin(admin.ModelAdmin):
@@ -82,6 +83,10 @@ class SellerAdmin(admin.ModelAdmin):
             return 'ALAMAT TIDAK LENGKAP'
 
 
+class SellerPromoItemAdmin(admin.ModelAdmin):
+    list_display = ('id', 'seller', 'name', 'image', 'thumbnail', 'expiry_date', 'target_id', 'featured_text')
+
+
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ('thumbnail', 'user_info', 'phone_number', 'location')
 
@@ -106,6 +111,20 @@ class UserImageAdmin(admin.ModelAdmin):
             return '%s (%s)' % (obj.profile_pic.name, obj.profile_pic.size)
         else:
             return 'Gambar bermasalah'
+
+
+class BankAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code_number', 'logo')
+
+
+class UserBankAdmin(admin.ModelAdmin):
+    list_display = ('account_number', 'account_name', 'bank')
+
+    def bank(self, obj):
+        if obj.bank:
+            return '%s (%s)' % (obj.bank.name, obj.bank.code_number)
+        else:
+            return "Tidak ada bank."
 
 
 class ProductBrandAdmin(admin.ModelAdmin):
@@ -175,16 +194,16 @@ class OrderDetailsAdmin(admin.ModelAdmin):
                     'payment_expiration',
                     'order_status_text')
 
-    exclude = ('order_expiration_date', )
+    exclude = ('order_expiration_date',)
 
     search_fields = ('order_id', 'customer__related_user__first_name')
-
 
     def cust_name(self, obj):
         if obj.customer:
             return '%s' % obj.customer.related_user.get_full_name()
         else:
             return 'Customer kosong'
+
     cust_name.short_description = 'Akun Pemesan'
 
     def shipping_address(self, obj):
@@ -193,6 +212,7 @@ class OrderDetailsAdmin(admin.ModelAdmin):
                    % (obj.address_book.name, obj.address_book.phone, obj.address_book.phone, obj.address_book.address)
         else:
             return 'NULL'
+
     shipping_address.short_description = 'Penerima Pesanan'
     shipping_address.allow_tags = True
 
@@ -205,11 +225,12 @@ class OrderDetailsAdmin(admin.ModelAdmin):
                 url = '%s/admin/poken_rest/product/%s/change/' % (properties.DJANGO_HOST, sc.product.id)
                 str_orders += '%d - <a target="_blank" href="%s">%s</a> (%d)<hr /><br />' \
                               % (product_count, url, sc.product.name[:50], sc.quantity)
-                product_count+=1
+                product_count += 1
 
             return '%s' % str_orders
         else:
             return '-'
+
     orders.short_description = 'Produk Pesanan'
     orders.allow_tags = True
 
@@ -261,8 +282,8 @@ class SubscribedAdmin(admin.ModelAdmin):
 
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
-    'id', 'name', 'description', 'seller_name', 'discount_status', 'is_posted', 'is_new', 'date_created',
-    'product_brand', 'category_name', 'size_name', 'stock', 'price', 'weight')
+        'id', 'name', 'description', 'seller_name', 'discount_status', 'is_posted', 'is_new', 'date_created',
+        'product_brand', 'category_name', 'size_name', 'stock', 'price', 'weight')
 
     search_fields = ('name', 'description')
 
@@ -319,7 +340,7 @@ class ShoppingCartAdmin(admin.ModelAdmin):
 
 
 class OrderedProductAdmin(admin.ModelAdmin):
-    list_display = ('id', 'order_details_data', 'shopping_cart_data', )
+    list_display = ('id', 'order_details_data', 'shopping_cart_data',)
 
     def order_details_data(self, obj):
         if obj.order_details:
@@ -356,12 +377,15 @@ admin.site.register(HomeProductSection, HomeProductSectionAdmin)
 admin.site.register(FeaturedItem, FeaturedItemAdmin)
 admin.site.register(ProductCategoryFeatured, ProductCategoryFeaturedAdmin)
 admin.site.register(Seller, SellerAdmin)
+admin.site.register(SellerPromo, SellerPromoItemAdmin)
 admin.site.register(Customer, CustomerAdmin)
 admin.site.register(ProductBrand, ProductBrandAdmin)
 admin.site.register(ProductSize, ProductSizeAdmin)
 admin.site.register(ProductCategory, ProductCategoryAdmin)
 admin.site.register(ProductImage, ProductImageAdmin)
 admin.site.register(UserImage, UserImageAdmin)
+admin.site.register(UserBank, UserBankAdmin)
+admin.site.register(Bank, BankAdmin)
 admin.site.register(Courier, CourierAdmin)
 admin.site.register(Location, LocationAdmin)
 admin.site.register(AddressBook, AddressBookAdmin)

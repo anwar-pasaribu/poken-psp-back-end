@@ -29,9 +29,9 @@ SECRET_KEY = 'u_51ivrtk65s0$b56n6)zrg8vyjw#7dsp-a65w48vsg*)_*axy'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = properties.IS_DEBUG
 
-ALLOWED_HOSTS = ['192.168.28.2', '192.168.1.106', '192.168.1.100',
+ALLOWED_HOSTS = ['192.168.28.2', '192.168.1.106', '192.168.1.101',
                  'localhost', '127.0.0.1', '192.168.43.152', '172.20.10.4',
-                 '139.59.245.162', '192.168.1.113', '192.168.1.101', '192.168.28.2']
+                 '139.59.245.162', '192.168.1.113', '192.168.1.101', '192.168.28.2', '192.168.0.101', '192.168.0.102']
 
 
 # Application definition
@@ -51,7 +51,20 @@ INSTALLED_APPS = [
 
     'rest_framework.authtoken',
     'django_cleanup',  # Automatically delete related files on Storage
+
+    'fcm_django',  # FCM
 ]
+
+FCM_DJANGO_SETTINGS = {
+        "FCM_SERVER_KEY": "AAAAVziEBM0:APA91bGMduMvyhSkJN2fO9ZDzhDc2__3vbKdY5aIZxh7CC0cp7IxzaIyR7LxPADJZcE_LPf0v02c24mPYZz7lA8g0oK29c4FZAp97KlFFeOjTJp0_tH2C7tx5_ki1wI2u9CrbnssgBbr",
+         # true if you want to have only one active device per registered user at a time
+         # default: False
+        "ONE_DEVICE_PER_USER": False,
+         # devices to which notifications cannot be sent,
+         # are deleted upon receiving error response from FCM
+         # default: False
+        "DELETE_INACTIVE_DEVICES": False,
+}
 
 # Django REST Framework
 REST_FRAMEWORK = {
