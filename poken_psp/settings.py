@@ -31,7 +31,8 @@ DEBUG = properties.IS_DEBUG
 
 ALLOWED_HOSTS = ['192.168.28.2', '192.168.1.106', '192.168.1.101',
                  'localhost', '127.0.0.1', '192.168.43.152', '172.20.10.4',
-                 '139.59.245.162', '192.168.1.113', '192.168.1.101', '192.168.28.2', '192.168.0.101', '192.168.0.102']
+                 '139.59.245.162', '192.168.1.113', '192.168.1.111', '192.168.28.2', '192.168.0.101', '192.168.0.102',
+                 '192.168.1.103', '192.168.0.100']
 
 
 # Application definition
@@ -75,7 +76,7 @@ REST_FRAMEWORK = {
     # 'DEFAULT_AUTHENTICATION_CLASSES': (
     #     'rest_framework.authentication.BasicAuthentication',
     # ),
-    'PAGE_SIZE': 10,
+    'PAGE_SIZE': 20,
     'DEFAULT_FILTER_BACKENDS': ('django_filters.rest_framework.DjangoFilterBackend',)
 }
 

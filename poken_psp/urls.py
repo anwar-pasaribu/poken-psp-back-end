@@ -13,17 +13,14 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.contrib import admin
 from django.conf import settings
-from django.conf.urls.static import static
-
 from django.conf.urls import url, include
+from django.conf.urls.static import static
+from django.contrib import admin
 from rest_framework import routers
-from poken_rest import views
-
 from rest_framework.authtoken import views as token_views
 
-from poken_rest.views import StoreSummaryViewSet
+from poken_rest import views
 
 router = routers.DefaultRouter()
 router.register(r'home', views.HomeContentViewSet, 'home')
@@ -45,6 +42,8 @@ router.register(r'user_location', views.UserLocationViewSet, 'user_location')
 router.register(r'user_bank', views.UserBankViewSet, 'user_bank')
 router.register(r'seller', views.SellerViewSet, 'seller')
 router.register(r'store_summary', views.StoreSummaryViewSet, 'store_summary')
+router.register(r'store_product', views.StoreProductViewSet, 'store_product')
+router.register(r'store_credits', views.StoreCreditsViewSet, 'store_credits')
 router.register(r'shipping_rates', views.ShippingRatesViewSet, 'shipping_rates')
 router.register(r'customer', views.CustomerViewSet, 'customer')
 router.register(r'customer_collection', views.CollectedProductViewSet, 'customer_collection')

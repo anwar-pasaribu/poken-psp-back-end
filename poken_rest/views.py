@@ -22,6 +22,8 @@ from poken_rest.poken_serializers.bank import UserBankSerializer
 from poken_rest.poken_serializers.cart import ShoppingCartSerializer
 from poken_rest.poken_serializers.category import ProductCategoryFeaturedSerializer, ProductCategorySerializer
 from poken_rest.poken_serializers.shipping import ShippingRatesSerializer
+from poken_rest.poken_serializers.storecredits import StoreCreditsSerializer
+from poken_rest.poken_serializers.storeproduct import StoreProductSerializer
 from poken_rest.poken_serializers.storesummary import StoreSummarySerializer
 from poken_rest.poken_serializers.user import UserRegisterSerializer as user_UserSerializer
 from poken_rest.serializers import UserSerializer, GroupSerializer, ProductSerializer, UserLocationSerializer, \
@@ -108,6 +110,50 @@ class StoreSummaryViewSet(viewsets.ModelViewSet):
         pass request attribute to serializer
         """
         context = super(StoreSummaryViewSet, self).get_serializer_context()
+        return context
+
+
+class StoreProductViewSet(viewsets.ModelViewSet):
+    serializer_class = StoreProductSerializer
+    permission_classes = (permissions.IsAuthenticated, )
+
+    def get_queryset(self):
+        user = self.request.user
+        seller = Seller.objects.get(related_user=user)
+        if seller:
+            seller_products = Product.objects.filter(seller=seller)
+            print("Seller products %s" % seller_products)
+            return seller_products
+
+        return []
+
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(StoreProductViewSet, self).get_serializer_context()
+        return context
+
+
+class StoreCreditsViewSet(viewsets.ModelViewSet):
+    serializer_class = StoreCreditsSerializer
+    permission_classes = (permissions.IsAuthenticated, )
+
+    def get_queryset(self):
+        user = self.request.user
+        seller = Seller.objects.get(related_user=user)
+        if seller:
+            seller_credits = OrderedProduct.objects.filter(shopping_carts__product__seller=seller)
+            print("Seller credits %s, len: %s" % (seller_credits, len(seller_credits)))
+            return seller_credits
+
+        return []
+
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(StoreCreditsViewSet, self).get_serializer_context()
         return context
 
 
