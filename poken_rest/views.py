@@ -121,7 +121,7 @@ class StoreProductViewSet(viewsets.ModelViewSet):
         user = self.request.user
         seller = Seller.objects.get(related_user=user)
         if seller:
-            seller_products = Product.objects.filter(seller=seller)
+            seller_products = Product.objects.filter(seller=seller).order_by('-id')
             print("Seller products %s" % seller_products)
             return seller_products
 

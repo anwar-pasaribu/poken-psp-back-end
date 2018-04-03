@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from poken_rest.models import Product, Seller, SellerPromo
+from poken_rest.domain import Order
+from poken_rest.models import Product, Seller, SellerPromo, OrderedProduct
 
 
 class StoreSummarySerializer(serializers.ModelSerializer):
@@ -43,7 +44,18 @@ class StoreSummarySerializer(serializers.ModelSerializer):
         return data
 
     def get_total_credits(self, obj):
-        data = 345000
+        data = 0
+
+        seller_credits = OrderedProduct.objects.filter(shopping_carts__product__seller=obj)
+        for seller_op in seller_credits:
+            if seller_op.order_details.order_status == Order.SUCCESS or \
+                    seller_op.order_details.order_status == Order.COD_AUTO_SUCCESS:
+                total_credits_per_order = 0
+                for sc in seller_op.shopping_carts.all():
+                    print ("Summary sc status %s Rp %s" %
+                           (seller_op.order_details.order_status, sc.shopping_cart_item_fee))
+                    total_credits_per_order += sc.shopping_cart_item_fee
+                data += total_credits_per_order
 
         return data
 

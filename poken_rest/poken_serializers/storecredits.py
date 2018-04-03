@@ -5,6 +5,7 @@ from poken_rest.models import OrderedProduct
 
 class StoreCreditsSerializer(serializers.ModelSerializer):
 
+    order_status = serializers.IntegerField(source='order_details.order_status', read_only=True)
     order_details = serializers.StringRelatedField(source='order_details.order_id', read_only=True)
     order_date = serializers.DateTimeField(source='order_details.date', read_only=True)
     order_total_credits = serializers.SerializerMethodField()
@@ -12,7 +13,7 @@ class StoreCreditsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderedProduct
-        fields = ('id', 'order_details', 'order_date', 'order_total_credits', 'order_total_ordered_item')
+        fields = ('id', 'order_details', 'order_status', 'order_date', 'order_total_credits', 'order_total_ordered_item')
 
     def get_order_total_credits(self, obj):
         total_credits_per_order = 0
