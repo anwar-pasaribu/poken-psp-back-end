@@ -116,11 +116,18 @@ class ProductSerializer(serializers.ModelSerializer):
     size = serializers.SlugRelatedField(many=False, read_only=True, slug_field='name')
     images = ProductImagesSerializer(many=True, read_only=True)
 
+    original_price = serializers.SerializerMethodField()
+
     class Meta:
         model = Product
         fields = ('id', 'name', 'description', 'seller', 'discount_amount',
                   'is_discount', 'is_cod', 'is_new', 'date_created', 'brand', 'category',
-                  'images', 'size', 'stock', 'price', 'weight')
+                  'images', 'size', 'stock', 'price', 'original_price', 'weight')
+
+    def get_original_price(self, obj):
+        if obj.original_price == 0:
+            return obj.price
+        else: return obj.original_price
 
 
 class ProductCartSerializer(serializers.ModelSerializer):
@@ -152,7 +159,7 @@ class InsertProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ('id', 'name', 'description', 'seller', 'is_new', 'date_created', 'date_modified', 'brand', 'category',
-                  'images', 'size', 'stock', 'price', 'weight')
+                  'images', 'size', 'stock', 'price', 'original_price', 'weight')
         extra_kwargs = {
             'id': {'read_only': True},
         }

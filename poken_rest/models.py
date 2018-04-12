@@ -415,6 +415,7 @@ class Product(models.Model):
     size = models.ForeignKey(ProductSize)
     stock = models.PositiveSmallIntegerField(blank=False)  # MAX 32767 items
     price = models.PositiveIntegerField(blank=False)
+    original_price = models.PositiveIntegerField(blank=True, default=0)
     weight = models.PositiveIntegerField(blank=False)  # MAX 2147483647 gram
 
     class Meta(object):

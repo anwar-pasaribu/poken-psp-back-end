@@ -20,6 +20,7 @@ class StoreSummarySerializer(serializers.ModelSerializer):
             'id': obj.id,
             'store_name': obj.store_name,
             'store_avatar': u'%s' % request.build_absolute_uri(obj.user_image.profile_pic.url),
+            'owner_name': obj.owner_name
         }
 
     def get_promotions(self, obj):

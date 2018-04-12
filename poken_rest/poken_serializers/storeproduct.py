@@ -19,7 +19,13 @@ class ProductCategorySerializer(serializers.ModelSerializer):
 class StoreProductSerializer(serializers.ModelSerializer):
     images = ProductImagesSerializer(many=True, read_only=True)
     # category = ProductCategorySerializer(many=False, read_only=True)
+    original_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ('id', 'name', 'images', 'price', 'stock')
+        fields = ('id', 'name', 'images', 'price', 'original_price', 'stock')
+
+    def get_original_price(self, obj):
+        if obj.original_price == 0:
+            return obj.price
+        else: return obj.original_price
