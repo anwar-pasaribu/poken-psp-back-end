@@ -16,10 +16,15 @@ class StoreSummarySerializer(serializers.ModelSerializer):
 
     def get_seller_detail(self, obj):
         request = self.context.get('request')  # View set should pass 'request' object
+
+        avatar_url = ""
+        if obj.user_image:
+            avatar_url = u'%s' % request.build_absolute_uri(obj.user_image.profile_pic.url)
+
         return {
             'id': obj.id,
             'store_name': obj.store_name,
-            'store_avatar': u'%s' % request.build_absolute_uri(obj.user_image.profile_pic.url),
+            'store_avatar': avatar_url,
             'owner_name': obj.owner_name
         }
 
@@ -30,8 +35,8 @@ class StoreSummarySerializer(serializers.ModelSerializer):
 
         data = []
 
-        if len(promos) == 0:
-            promos = SellerPromo.objects.all()
+        # if len(promos) == 0:
+        #     promos = SellerPromo.objects.all()
 
         for promo in promos:
             if promo:
@@ -66,10 +71,10 @@ class StoreSummarySerializer(serializers.ModelSerializer):
         related_products = []
         featured_product = Product.objects.filter(seller=obj).order_by('-id')[:9]
 
-        print ("Category: %s " % str(obj))
-
-        if len(featured_product) < 3:
-            featured_product = Product.objects.all()[:3]
+        # print ("Category: %s " % str(obj))
+        #
+        # if len(featured_product) < 3:
+        #     featured_product = Product.objects.all()[:3]
 
         for product in featured_product:
             if product is not None:
