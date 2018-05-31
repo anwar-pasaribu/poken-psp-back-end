@@ -9,10 +9,10 @@ from django.utils import html
 from django.utils.formats import localize
 from django.utils import timezone
 import pytz
+from fcm_django.models import FCMDevice
 
 from poken_psp import properties
 from poken_rest.domain import Order
-from poken_rest.services import integration_google
 
 URL_SLACK_TEST = "https://hooks.slack.com/services/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"
 URL_SLACK_POKEN_SALES = "https://hooks.slack.com/services/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"
@@ -139,179 +139,57 @@ def send_slack_new_order_notif(new_ordered_product):
     shipping_receiver_phone = html.escape(address_book.phone)
     shipping_receiver_address = html.escape(address_book.address)
 
-    # Generate ordered product
-    str_ordered_temp = """{
-            "title": "%s",
-			"title_link": "%s",
-            "text": "%s",
-			"fields": [
-                {
-                    "title": "Jumlah Pesanan",
-                    "value": "%d ( @1 Rp %s). Total biaya: Rp %s",
-                    "short": true
-                },
-                {
-                    "title": "Stok Barang",
-                    "value": "%d",
-                    "short": true
-                },
-                {
-                    "title": "Expedisi",
-                    "value": "%s",
-                    "short": true
-                },
-                {
-                    "title": "Ongkir",
-                    "value": "Rp %s (%s)",
-                    "short": true
-                }
-            ]        
-		}, {
-            "title": "Catatan Untuk Penjual",
-            "text": "%s",
-			"fields": [
-                {
-                    "title": "Nama Toko",
-                    "value": "%s",
-                    "short": true
-                },
-                {
-                    "title": "Nomor Telp. Toko",
-                    "value": "<tel:%s|%s>",
-                    "short": true
-                }
-            ]
-        }"""
-    str_ordered_items = ""
+    message = "Pesanan baru %s pada %s" % (cust_name, order_date)
+
     for sc in ordered_product.shopping_carts.all():
 
-        sc.product.price = (sc.product.price - ((sc.product.price * sc.product.discount_amount) / 100))
-        total_cost = sc.product.price * sc.quantity + sc.shipping_fee
+        # sc.product.price = (sc.product.price - ((sc.product.price * sc.product.discount_amount) / 100))
+        # total_cost = sc.product.price * sc.quantity + sc.shipping_fee
+        #
+        # str_note = html.escape(sc.extra_note.replace('"', '\\"'))
+        # if len(str_note) == 0:
+        #     str_note = '-'
+        #
+        # str_ordered_items += str_ordered_temp % (
+        #     html.escape(sc.product.name.replace('"', '\\"')),
+        #     html.escape(request.build_absolute_uri(sc.product.images.first().path.url)),
+        #     html.escape(sc.product.description.replace('"', '\\"'))[:100],  # First hundred
+        #     sc.quantity,
+        #     "{:,}".format(sc.product.price),
+        #     "{:,}".format(total_cost),
+        #     sc.product.stock,
+        #     sc.shipping.name,
+        #     "{:,}".format(sc.shipping_fee),
+        #     sc.shipping_service,
+        #     str_note,
+        #     html.escape(sc.product.seller.store_name.replace('"', '\\"')),
+        #     html.escape(sc.product.seller.phone_number), html.escape(sc.product.seller.phone_number)
+        # ) + ","
 
-        str_note = html.escape(sc.extra_note.replace('"', '\\"'))
-        if len(str_note) == 0:
-            str_note = '-'
+        product_seller = sc.product.seller
+        seller_related_user = product_seller.related_user
 
-        str_ordered_items += str_ordered_temp % (
-            html.escape(sc.product.name.replace('"', '\\"')),
-            html.escape(request.build_absolute_uri(sc.product.images.first().path.url)),
-            html.escape(sc.product.description.replace('"', '\\"'))[:100],  # First hundred
-            sc.quantity,
-            "{:,}".format(sc.product.price),
-            "{:,}".format(total_cost),
-            sc.product.stock,
-            sc.shipping.name,
-            "{:,}".format(sc.shipping_fee),
-            sc.shipping_service,
-            str_note,
-            html.escape(sc.product.seller.store_name.replace('"', '\\"')),
-            html.escape(sc.product.seller.phone_number), html.escape(sc.product.seller.phone_number)
-        ) + ","
-
-    str_ordered_items = str_ordered_items.rsplit(',', 1)[0]
-
-    payload = """
-    {
-    "text": "Pesanan Barang Baru oleh %s",
-    "attachments": [
-        {
-            "title": "Profile Pembeli",
-            "text": "Order ref. %s pada %s",
-            "color": "#904799",
-			"fields": [
-                {
-                    "title": "Nama",
-                    "value": "%s",
-                    "short": true
-                },
-                {
-                    "title": "Nomor Telp. Pembeli",
-                    "value": "<tel:%s|%s>",
-                    "short": true
-                },
-                {
-                    "title": "Alamat",
-                    "value": "%s",
-                    "short": true
-                }
-            ]        
-		},
-		%s
-    ]
-    }
-    """ % (
-        cust_name,
-        order_id_link,
-        order_date,
-        shipping_receiver_name,
-        shipping_receiver_phone, shipping_receiver_phone,
-        shipping_receiver_address,
-        str_ordered_items
-    )
-
-    headers = {
-        'content-type': "application/json",
-        'cache-control': "no-cache"
-    }
-
-    slack_url = URL_SLACK_POKEN_SALES
-    if properties.IS_TEST_SLACK:
-        slack_url = URL_SLACK_TEST
-
-    response = requests.request("POST", slack_url, data=payload.encode('utf-8'), headers=headers)
-
-    print ("Slack webhook new order response: " + str(response.text))
-
-    # Send simple version
-    if response.text != 'ok':
-        payload2 = """
-                    {
-                    "text": "Pesanan Barang Baru oleh %s",
-                    "attachments": [
-                        {
-                            "title": "Profile Pembeli",
-                            "text": "Pemesanan %s pada %s",
-                            "color": "#F6902D",
-                            "fields": [
-                                {
-                                    "title": "Nama",
-                                    "value": "%s",
-                                    "short": true
-                                },
-                                {
-                                    "title": "Nomor Pembeli",
-                                    "value": "<tel:%s|%s>",
-                                    "short": true
-                                },
-                                {
-                                    "title": "Alamat",
-                                    "value": "%s",
-                                    "short": true
-                                }
-                            ]        
-                        }
-                    ]
-                    }
-                    """ % (
-            cust_name,
-            order_id_link,
-            order_date,
-            shipping_receiver_name,
-            shipping_receiver_phone, shipping_receiver_phone,
-            shipping_receiver_address,
-        )
-        requests.request("POST", slack_url, data=payload2.encode('utf-8'), headers=headers)
+        fcm_devices = FCMDevice.objects.filter(user=seller_related_user)
+        print("FCM Devices count", len(fcm_devices))
+        if len(fcm_devices) > 0:
+            device = fcm_devices.first()
+            print("Device : ", device)
+            if device:
+                print("Message " + message)
+                res = device.send_message(
+                    title="Poken - Pesanan Baru",
+                    body=message,
+                    data={"product_id": '%s' % sc.product.id, "order_id": '%s' % ordered_product.order_details.order_id}
+                )
+                print("Res: ", res)
 
 
-# NEW ORDER SLACK MESSAGE.
+# NEW ORDER NOTIF.
 def start_message_ordered_product(new_ordered_product, request):
     slack_content = {
         'request': request,
         'data': new_ordered_product
     }
-
-    # Send FCM Notif to Seller
-    integration_google.start_message_ordered_product(new_ordered_product, request)
 
     if properties.IS_SLACK_MESSAGE_ON:
         thread.start_new_thread(send_slack_new_order_notif, (slack_content,))

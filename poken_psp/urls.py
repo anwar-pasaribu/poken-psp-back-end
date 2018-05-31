@@ -19,6 +19,9 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from rest_framework import routers
 from rest_framework.authtoken import views as token_views
+from fcm_django.api.rest_framework import FCMDeviceAuthorizedViewSet
+
+from rest_framework.routers import DefaultRouter
 
 from poken_rest import views
 
@@ -52,6 +55,9 @@ router.register(r'address_book', views.AddressBookSerializerViewSet, 'address_bo
 router.register(r'cart', views.ShoppingCartViewSet, 'cart')
 router.register(r'users', views.UserViewSet, 'users')
 router.register(r'groups', views.GroupViewSet, 'groups')
+router.register(r'poken_fcm', views.PokenFCMViewSet, 'poken_fcm')
+
+router.register(r'devices', FCMDeviceAuthorizedViewSet)
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
@@ -69,5 +75,12 @@ if settings.DEBUG is True:
 
 urlpatterns += [
     url(r'^poken_rest/api-token-auth/', token_views.obtain_auth_token)
+]
+
+urlpatterns += [
+        # URLs will show up at <api_root>/devices
+        # DRF browsable API which lists all available endpoints
+        # DRF browsable API which lists all available endpoints
+        url(r'^', include(router.urls))
 ]
 

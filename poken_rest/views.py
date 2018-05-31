@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+from __future__ import print_function
 from __future__ import unicode_literals
 
 import datetime
@@ -7,6 +8,8 @@ import datetime
 import pytz
 from django.contrib.auth.models import User, Group
 from django.db.models import Q
+from django.db.models.fields import related
+from fcm_django.models import FCMDevice
 from rest_framework.views import APIView
 from rest_framework import viewsets, permissions, status
 # GET USER DATA BY TOKEN
@@ -21,6 +24,7 @@ from poken_rest.models import Product, UserLocation, Customer, Seller, ProductBr
 from poken_rest.poken_serializers.bank import UserBankSerializer
 from poken_rest.poken_serializers.cart import ShoppingCartSerializer
 from poken_rest.poken_serializers.category import ProductCategoryFeaturedSerializer, ProductCategorySerializer
+from poken_rest.poken_serializers.fcm import PokenFCMSerializer
 from poken_rest.poken_serializers.shipping import ShippingRatesSerializer
 from poken_rest.poken_serializers.storecredits import StoreCreditsSerializer
 from poken_rest.poken_serializers.storeproduct import StoreProductSerializer
@@ -95,6 +99,32 @@ class ProductCategoryFeaturedViewSet(viewsets.ModelViewSet):
         return context
 
 
+class PokenFCMViewSet(viewsets.ModelViewSet):
+    serializer_class = PokenFCMSerializer
+    permission_classes = (permissions.AllowAny,)
+
+    def get_queryset(self):
+        """
+        This view should return a list of all the address book
+        for the currently authenticated user.
+        """
+        user = self.request.user
+        print("User: ", user)
+        if not user:
+            return []
+        else:
+            fcm_device = FCMDevice.objects.filter(user=user)
+
+            return fcm_device
+
+    def get_serializer_context(self):
+        """
+        pass request attribute to serializer
+        """
+        context = super(PokenFCMViewSet, self).get_serializer_context()
+        return context
+
+
 class StoreSummaryViewSet(viewsets.ModelViewSet):
     serializer_class = StoreSummarySerializer
     permission_classes = (permissions.IsAuthenticated, )
@@ -119,10 +149,9 @@ class StoreProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        seller = Seller.objects.get(related_user=user)
-        if seller:
-            seller_products = Product.objects.filter(seller=seller).order_by('-id')
-            print("Seller products %s" % seller_products)
+        seller = Seller.objects.filter(related_user=user)
+        if len(seller) > 0:
+            seller_products = Product.objects.filter(seller=seller.first()).order_by('-id')
             return seller_products
 
         return []
@@ -497,6 +526,12 @@ class OrderDetailsViewSet(viewsets.ModelViewSet):
         Ordered Product based on Logged in user.
         """
         user = self.request.user
+        seller = Seller.objects.filter(related_user=user).first()
+
+        if seller:
+            print("Seller available. Seller: %s" % seller)
+            return OrderDetails.objects.all()
+
         active_customer = Customer.objects.filter(related_user=user).first()
 
         return OrderDetails.objects.filter(customer=active_customer)
@@ -543,12 +578,40 @@ class OrderedProductViewSet(viewsets.ModelViewSet):
     serializer_class = OrderedProductSerializer
     permission_classes = (permissions.IsAuthenticated,)
 
+    # Get single data
+    def get_object(self):
+
+        user = self.request.user
+        seller = Seller.objects.filter(related_user=user).first()
+
+        # Get pk from URL (ordered_product/{pk}/)
+        pk_data = self.kwargs.get('pk')
+
+        if seller:
+            print("Seller mode. Seller: %s" % seller)
+            ordered_products = OrderedProduct.objects.filter(id=int(pk_data))
+            return get_object_or_404(queryset=ordered_products)
+
+        try:
+            int_pk = int(pk_data)
+            cust = OrderedProduct.objects.filter(id=int_pk)
+            return get_object_or_404(queryset=cust)
+
+        except ValueError as value_error_ex:
+            print(value_error_ex)
+            return get_object_or_404(queryset=[])
+
     def get_queryset(self):
         """
         Ordered Product based on Logged in user.
         """
         user = self.request.user
         active_customer = Customer.objects.filter(related_user=user).first()
+
+        print ("Active cust %s" % active_customer)
+
+        if active_customer is None:
+            return []
 
         # CHECK EXPIRE ORDER
         # SET ORDER STATUS TO EXPIRE WHEN PAYMENT DUE IS OVER

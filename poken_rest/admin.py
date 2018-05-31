@@ -88,7 +88,9 @@ class SellerPromoItemAdmin(admin.ModelAdmin):
 
 
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('thumbnail', 'user_info', 'phone_number', 'location')
+    list_display = ('id', 'user_info', 'phone_number', 'location')
+
+    search_fields = ('related_user__email', )
 
     def user_info(self, obj):
         if obj.related_user:
@@ -350,8 +352,8 @@ class OrderedProductAdmin(admin.ModelAdmin):
 
     def shopping_cart_data(self, obj):
         if obj.shopping_carts:
-            return ''.join('Produk ID: %s (banyak: %s), ' %
-                           (sc.product.id, sc.quantity) for sc in obj.shopping_carts.all()).rsplit(',', 1)[0]
+            return ''.join('Produk ID: %s, Seller ID: %s (banyak: %s), ' %
+                           (sc.product.id, sc.product.seller, sc.quantity) for sc in obj.shopping_carts.all()).rsplit(',', 1)[0]
         else:
             return 'Data produk troli kosong'
 

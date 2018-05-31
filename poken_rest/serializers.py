@@ -497,7 +497,7 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ShoppingCart
-        fields = ('id', 'product', 'date', 'quantity', 'shipping', 'shipping_fee', 'extra_note')
+        fields = ('id', 'product', 'date', 'quantity', 'shipping', 'shipping_fee', 'shipping_service', 'extra_note')
 
 
 class InsertOrderDetailsSerializer(serializers.ModelSerializer):
