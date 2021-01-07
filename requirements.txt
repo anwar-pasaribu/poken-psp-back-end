@@ -27,7 +27,7 @@ googleapis-common-protos==1.5.3
 grpcio==1.8.4
 idna==2.6
 isodate==0.5.4
-lxml==4.0.0
+lxml==4.6.2
 Markdown==2.6.6
 oauthlib==2.0.1
 olefile==0.44
