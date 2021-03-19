@@ -9,7 +9,7 @@ Django==1.11
 django-braces==1.11.0
 django-cleanup==1.0.1
 django-filter==1.0.4
-djangorestframework==3.6.2
+djangorestframework==3.11.2
 djangorestframework-queryfields==1.0.0
 enum34==1.1.6
 fcm-django==0.2.13
