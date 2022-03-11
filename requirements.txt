@@ -33,7 +33,7 @@ oauthlib==2.0.1
 olefile==0.44
 osa==0.2
 packaging==16.8
-Pillow==4.1.1
+Pillow==9.0.1
 ply==3.8
 protobuf==3.5.1
 psycopg2==2.7.1
